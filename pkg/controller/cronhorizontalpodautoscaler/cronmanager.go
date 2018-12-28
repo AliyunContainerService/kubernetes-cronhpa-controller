@@ -1,0 +1,175 @@
+package cronhorizontalpodautoscaler
+
+import (
+	log "github.com/Sirupsen/logrus"
+	"k8s.io/client-go/informers"
+	"k8s.io/client-go/restmapper"
+	cacheddiscovery "k8s.io/client-go/discovery/cached"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/scale"
+	"k8s.io/kubernetes/pkg/controller"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/tools/record"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"time"
+	"k8s.io/client-go/rest"
+	"k8s.io/api/core/v1"
+	"sync"
+	"github.com/ringtail/go-cron"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"context"
+	autoscalingv1beta1 "gitlab.alibaba-inc.com/cos/kubernetes-cron-hpa-controller/pkg/apis/autoscaling/v1beta1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"fmt"
+)
+
+type CronManager struct {
+	sync.Mutex
+	cfg           *rest.Config
+	client        client.Client
+	jobQueue      map[string]CronJob
+	cronProcessor CronProcessor
+	cronExecutor  CronExecutor
+	mapper        *restmapper.DeferredDiscoveryRESTMapper
+	scaler        scale.ScalesGetter
+	eventRecorder record.EventRecorder
+}
+
+func (cm *CronManager) update(j CronJob) {
+	cm.Lock()
+	defer cm.Unlock()
+	if _, ok := cm.jobQueue[j.ID()]; !ok {
+		cm.jobQueue[j.ID()] = j
+		err := cm.cronExecutor.AddJob(j)
+		if err != nil {
+			log.Errorf("Failed to add job to cronExecutor,because of %s", err.Error())
+		}
+	} else {
+		job := cm.jobQueue[j.ID()]
+		if ok := job.Equals(j); !ok {
+			err := cm.cronExecutor.Update(j)
+			if err != nil {
+				log.Errorf("Failed to update job to cronExecutor,because of %s", err.Error())
+			}
+		}
+	}
+
+}
+
+func (cm *CronManager) JobResultHandler(js *cron.JobResult) {
+	job := js.Ref.(*CronJobHPA)
+	cronHpa := js.Ref.(*CronJobHPA).HPARef
+	err := js.Error
+	instance := &autoscalingv1beta1.CronHorizontalPodAutoscaler{}
+	e := cm.client.Get(context.TODO(), types.NamespacedName{
+		Namespace: cronHpa.Namespace,
+		Name:      cronHpa.Name,
+	}, instance)
+
+	if e != nil {
+		log.Errorf("Failed to fetch CronHorizontalPodAutoscaler job:%s namespace:%s cronHPA:%s,because of %s", job.Name(), cronHpa.Namespace, cronHpa.Name, err.Error())
+		return
+	}
+
+	state := autoscalingv1beta1.Completed
+	message := fmt.Sprintf("cron hpa job %s executed successfully", job.name)
+	eventType := v1.EventTypeNormal
+	found := false
+	if err != nil {
+		state = autoscalingv1beta1.Failed
+		message = fmt.Sprintf("cron hpa failed to execute,because of %s", err.Error())
+		eventType = v1.EventTypeWarning
+	}
+
+	cm.eventRecorder.Event(instance, eventType, string(state), message)
+
+	condition := autoscalingv1beta1.Condition{
+		Name:          job.Name(),
+		JobId:         job.ID(),
+		LastProbeTime: metav1.Time{time.Now()},
+		State:         state,
+		Message:       message,
+	}
+
+	conditions := instance.Status.Conditions
+
+	for index, c := range conditions {
+		if c.JobId == job.ID() {
+			found = true
+			instance.Status.Conditions[index] = condition
+		}
+	}
+
+	if found == false {
+		instance.Status.Conditions = append(instance.Status.Conditions, condition)
+	}
+
+	err = cm.client.Update(context.Background(), instance)
+	if err != nil {
+		log.Errorf("Failed to update cronHPA job:%s namespace:%s cronHPA:%s,because of %s", job.Name(), cronHpa.Namespace, cronHpa.Name, err.Error())
+	}
+}
+
+func (cm *CronManager) Run(stopChan chan struct{}) {
+	rootClientBuilder := controller.SimpleControllerClientBuilder{
+		ClientConfig: cm.cfg,
+	}
+
+	versionedClient := rootClientBuilder.ClientOrDie("shared-informers")
+	sharedInformers := informers.NewSharedInformerFactory(versionedClient, time.Minute*5)
+
+	// Use a discovery client capable of being refreshed.
+	discoveryClient := rootClientBuilder.ClientOrDie("controller-discovery")
+	cachedClient := cacheddiscovery.NewMemCacheClient(discoveryClient.Discovery())
+	restMapper := restmapper.NewDeferredDiscoveryRESTMapper(cachedClient)
+	go wait.Until(func() {
+		restMapper.Reset()
+	}, 30*time.Second, stopChan)
+
+	scaleKindResolver := scale.NewDiscoveryScaleKindResolver(rootClientBuilder.ClientOrDie("horizontal-pod-autoscaler").Discovery())
+	scaler, err := scale.NewForConfig(rootClientBuilder.ConfigOrDie("horizontal-pod-autoscaler"), restMapper, dynamic.LegacyAPIPathResolverFunc, scaleKindResolver)
+	if err != nil {
+		log.Fatal(err)
+	}
+	cm.mapper = restMapper
+	cm.scaler = scaler
+
+	sharedInformers.Start(stopChan)
+
+	cm.cronExecutor.Run()
+	<-stopChan
+	cm.cronExecutor.Stop()
+}
+
+// GC will collect all jobs which ref is not exists and recycle.
+func (cm *CronManager) GC() {
+	for _, job := range cm.jobQueue {
+		hpa := job.(*CronJobHPA).HPARef
+		instance := &autoscalingv1beta1.CronHorizontalPodAutoscaler{}
+		if err := cm.client.Get(context.Background(), types.NamespacedName{
+			hpa.Namespace,
+			hpa.Name,
+		}, instance); err != nil {
+			if errors.IsNotFound(err) {
+				delete(cm.jobQueue, job.ID())
+				err := cm.cronExecutor.RemoveJob(job)
+				if err != nil {
+					log.Errorf("Failed to gc job %s %s %s", hpa.Namespace, hpa.Name, job.Name())
+					continue
+				}
+			}
+		}
+	}
+}
+
+func NewCronManager(cfg *rest.Config, client client.Client, recorder record.EventRecorder) *CronManager {
+	cm := &CronManager{
+		cfg:           cfg,
+		client:        client,
+		jobQueue:      make(map[string]CronJob),
+		eventRecorder: recorder,
+	}
+	cm.cronExecutor = NewCronHPAExecutor(nil, cm.JobResultHandler)
+	return cm
+}
