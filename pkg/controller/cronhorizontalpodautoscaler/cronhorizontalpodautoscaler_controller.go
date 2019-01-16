@@ -47,7 +47,14 @@ func Add(mgr manager.Manager) error {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	return &ReconcileCronHorizontalPodAutoscaler{Client: mgr.GetClient(), scheme: mgr.GetScheme(), CronManager: NewCronManager(mgr.GetConfig(), mgr.GetClient(), mgr.GetRecorder("cron-horizontal-pod-autoscaler"))}
+	var stopChan chan struct{}
+	cm := NewCronManager(mgr.GetConfig(), mgr.GetClient(), mgr.GetRecorder("cron-horizontal-pod-autoscaler"))
+	r := &ReconcileCronHorizontalPodAutoscaler{Client: mgr.GetClient(), scheme: mgr.GetScheme(), CronManager: cm}
+	go func(cronManager *CronManager, stopChan chan struct{}) {
+		cm.Run(stopChan)
+		<-stopChan
+	}(cm, stopChan)
+	return r
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
@@ -63,12 +70,6 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	if err != nil {
 		return err
 	}
-	go func() {
-		var stopChan chan struct{}
-		cm := r.(*ReconcileCronHorizontalPodAutoscaler).CronManager
-		cm.Run(stopChan)
-		<-stopChan
-	}()
 
 	return nil
 }

@@ -113,7 +113,7 @@ func (cm *CronManager) JobResultHandler(js *cron.JobResult) {
 		Name:          job.Name(),
 		JobId:         job.ID(),
 		Schedule:      job.SchedulePlan(),
-		LastProbeTime: metav1.Time{time.Now()},
+		LastProbeTime: metav1.Time{Time: time.Now()},
 		State:         state,
 		Message:       message,
 	}
@@ -176,8 +176,8 @@ func (cm *CronManager) GC() {
 		hpa := job.(*CronJobHPA).HPARef
 		instance := &autoscalingv1beta1.CronHorizontalPodAutoscaler{}
 		if err := cm.client.Get(context.Background(), types.NamespacedName{
-			hpa.Namespace,
-			hpa.Name,
+			Namespace: hpa.Namespace,
+			Name:      hpa.Name,
 		}, instance); err != nil {
 			if errors.IsNotFound(err) {
 				delete(cm.jobQueue, job.ID())

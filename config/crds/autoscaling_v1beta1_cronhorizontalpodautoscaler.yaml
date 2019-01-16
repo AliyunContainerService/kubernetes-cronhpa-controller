@@ -27,8 +27,77 @@ spec:
         metadata:
           type: object
         spec:
+          properties:
+            jobs:
+              items:
+                properties:
+                  name:
+                    type: string
+                  schedule:
+                    type: string
+                  targetSize:
+                    format: int32
+                    type: integer
+                required:
+                - name
+                - schedule
+                - targetSize
+                type: object
+              type: array
+            scaleTargetRef:
+              description: 'INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
+                Important: Run "make" to regenerate code after modifying this file'
+              properties:
+                apiVersion:
+                  type: string
+                kind:
+                  type: string
+                name:
+                  type: string
+              required:
+              - apiVersion
+              - kind
+              - name
+              type: object
+          required:
+          - scaleTargetRef
+          - jobs
           type: object
         status:
+          properties:
+            conditions:
+              description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
+                of cluster Important: Run "make" to regenerate code after modifying
+                this file'
+              items:
+                properties:
+                  jobId:
+                    type: string
+                  lastProbeTime:
+                    format: date-time
+                    type: string
+                  message:
+                    description: Human readable message indicating details about last
+                      transition.
+                    type: string
+                  name:
+                    description: Type of job condition, Complete or Failed.
+                    type: string
+                  schedule:
+                    type: string
+                  state:
+                    type: string
+                required:
+                - name
+                - jobId
+                - schedule
+                - state
+                - lastProbeTime
+                - message
+                type: object
+              type: array
+          required:
+          - conditions
           type: object
   version: v1beta1
 status:
