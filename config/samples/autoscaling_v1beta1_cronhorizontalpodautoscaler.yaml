@@ -8,11 +8,11 @@ spec:
    scaleTargetRef:
       apiVersion: apps/v1beta2
       kind: Deployment
-      name: nginx-deployment-basic
+      name: nginx-deployment-basic3
    jobs:
    - name: "scale-down"
-     schedule: "30 */3 * * * *"
+     schedule: "30 */1 * * * *"
      targetSize: 1
    - name: "scale-up"
-     schedule: "0 */5 * * * *"
-     targetSize: 2
+     schedule: "0 */1 * * * *"
+     targetSize: 3

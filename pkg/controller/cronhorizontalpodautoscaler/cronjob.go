@@ -1,14 +1,14 @@
 package cronhorizontalpodautoscaler
 
 import (
-	scaleclient "k8s.io/client-go/scale"
-	apimeta "k8s.io/apimachinery/pkg/api/meta"
-	"github.com/satori/go.uuid"
-	autoscalingapi "k8s.io/api/autoscaling/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"github.com/virtual-kubelet/virtual-kubelet/providers/aliyun/ingress/errors"
 	"fmt"
+	"github.com/satori/go.uuid"
+	"github.com/virtual-kubelet/virtual-kubelet/providers/aliyun/ingress/errors"
 	"gitlab.alibaba-inc.com/cos/kubernetes-cron-hpa-controller/pkg/apis/autoscaling/v1beta1"
+	autoscalingapi "k8s.io/api/autoscaling/v1"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	scaleclient "k8s.io/client-go/scale"
 )
 
 type CronJob interface {
@@ -108,20 +108,20 @@ func checkPlanValid(plan string) error {
 	return nil
 }
 
-func CronHPAJobFactory(ref *TargetRef, hpaRef *v1beta1.CronHorizontalPodAutoscaler, name string, plan string, size int32, scaler scaleclient.ScalesGetter, mapper apimeta.RESTMapper) (CronJob, error) {
+func CronHPAJobFactory(ref *TargetRef, hpaRef *v1beta1.CronHorizontalPodAutoscaler, job v1beta1.Job, scaler scaleclient.ScalesGetter, mapper apimeta.RESTMapper) (CronJob, error) {
 	if err := checkRefValid(ref); err != nil {
 		return nil, err
 	}
-	if err := checkPlanValid(plan); err != nil {
+	if err := checkPlanValid(job.Schedule); err != nil {
 		return nil, err
 	}
 	return &CronJobHPA{
 		id:          uuid.Must(uuid.NewV4()).String(),
 		TargetRef:   ref,
-		name:        name,
 		HPARef:      hpaRef,
-		Plan:        plan,
-		DesiredSize: size,
+		name:        job.Name,
+		Plan:        job.Schedule,
+		DesiredSize: job.TargetSize,
 		scaler:      scaler,
 		mapper:      mapper,
 	}, nil

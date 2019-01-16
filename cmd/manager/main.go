@@ -21,7 +21,7 @@ import (
 
 	"gitlab.alibaba-inc.com/cos/kubernetes-cron-hpa-controller/pkg/apis"
 	"gitlab.alibaba-inc.com/cos/kubernetes-cron-hpa-controller/pkg/controller"
-	"gitlab.alibaba-inc.com/cos/kubernetes-cron-hpa-controller/pkg/webhook"
+	//"gitlab.alibaba-inc.com/cos/kubernetes-cron-hpa-controller/pkg/webhook"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -65,11 +65,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	log.Info("setting up webhooks")
-	if err := webhook.AddToManager(mgr); err != nil {
-		log.Error(err, "unable to register webhooks to the manager")
-		os.Exit(1)
-	}
+	//log.Info("setting up webhooks")
+	//if err := webhook.AddToManager(mgr); err != nil {
+	//	log.Error(err, "unable to register webhooks to the manager")
+	//	os.Exit(1)
+	//}
 
 	// Start the Cmd
 	log.Info("Starting the Cmd.")

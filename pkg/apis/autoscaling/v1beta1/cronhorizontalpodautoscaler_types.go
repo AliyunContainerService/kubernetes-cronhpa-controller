@@ -28,7 +28,7 @@ type CronHorizontalPodAutoscalerSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 	ScaleTargetRef ScaleTargetRef `json:"scaleTargetRef"`
-	Jobs           [] Job         `json:"jobs"`
+	Jobs           []Job          `json:"jobs"`
 }
 
 type Job struct {
@@ -46,35 +46,33 @@ type ScaleTargetRef struct {
 type JobState string
 
 const (
-	Completed JobState = "Completed"
+	Succeed   JobState = "Succeed"
 	Failed    JobState = "Failed"
 	Submitted JobState = "Submitted"
 )
 
 type Condition struct {
 	// Type of job condition, Complete or Failed.
-	Name string
+	Name string `json:"name"`
 
-	JobId string
+	JobId string `json:"jobId"`
 
-	State JobState
+	Schedule string `json:"schedule"`
 
-	LastProbeTime metav1.Time
+	State JobState `json:"state"`
+
+	LastProbeTime metav1.Time `json:"lastProbeTime"`
 
 	// Human readable message indicating details about last transition.
 	// +optional
-	Message string
+	Message string `json:"message"`
 }
 
 // CronHorizontalPodAutoscalerStatus defines the observed state of CronHorizontalPodAutoscaler
 type CronHorizontalPodAutoscalerStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	Failed bool
-
-	Succeed bool
-
-	Conditions [] Condition
+	Conditions []Condition `json:"conditions"`
 }
 
 // +genclient
@@ -94,9 +92,9 @@ type CronHorizontalPodAutoscaler struct {
 
 // CronHorizontalPodAutoscalerList contains a list of CronHorizontalPodAutoscaler
 type CronHorizontalPodAutoscalerList struct {
-	metav1.TypeMeta                     `json:",inline"`
-	metav1.ListMeta                     `json:"metadata,omitempty"`
-	Items []CronHorizontalPodAutoscaler `json:"items"`
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []CronHorizontalPodAutoscaler `json:"items"`
 }
 
 func init() {

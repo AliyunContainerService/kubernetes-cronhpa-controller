@@ -18,17 +18,18 @@ package cronhorizontalpodautoscaler
 
 import (
 	"context"
+	"fmt"
+	log "github.com/Sirupsen/logrus"
+	"gitlab.alibaba-inc.com/cos/kubernetes-cron-hpa-controller/pkg/apis/autoscaling/v1beta1"
 	autoscalingv1beta1 "gitlab.alibaba-inc.com/cos/kubernetes-cron-hpa-controller/pkg/apis/autoscaling/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	log "github.com/Sirupsen/logrus"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
-	"gitlab.alibaba-inc.com/cos/kubernetes-cron-hpa-controller/pkg/apis/autoscaling/v1beta1"
 	"strings"
 )
 
@@ -46,7 +47,7 @@ func Add(mgr manager.Manager) error {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	return &ReconcileCronHorizontalPodAutoscaler{Client: mgr.GetClient(), scheme: mgr.GetScheme(), CronManager: NewCronManager(mgr.GetConfig(), mgr.GetClient(), mgr.GetRecorder("cron-horizontal-pod-autoscaler")),}
+	return &ReconcileCronHorizontalPodAutoscaler{Client: mgr.GetClient(), scheme: mgr.GetScheme(), CronManager: NewCronManager(mgr.GetConfig(), mgr.GetClient(), mgr.GetRecorder("cron-horizontal-pod-autoscaler"))}
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
@@ -64,21 +65,11 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 	go func() {
 		var stopChan chan struct{}
-
 		cm := r.(*ReconcileCronHorizontalPodAutoscaler).CronManager
 		cm.Run(stopChan)
 		<-stopChan
-
 	}()
-	// TODO(user): Modify this to be the types you create
-	// Uncomment watch a Deployment created by CronHorizontalPodAutoscaler - change this for objects you create
-	//err = c.Watch(&source.Kind{Type: &appsv1.Deployment{}}, &handler.EnqueueRequestForOwner{
-	//	IsController: true,
-	//	OwnerType:    &autoscalingv1beta1.CronHorizontalPodAutoscaler{},
-	//})
-	//if err != nil {
-	//	return err
-	//}
+
 	return nil
 }
 
@@ -106,7 +97,6 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 		if errors.IsNotFound(err) {
 			// Object not found, return.  Created objects are automatically garbage collected.
 			// For additional cleanup logic use finalizers.
-			go r.CronManager.GC()
 			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
@@ -115,22 +105,43 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 
 	conditions := instance.Status.Conditions
 
-	for index, condition := range conditions {
-		needClean := true
+	leftConditions := make([]v1beta1.Condition, 0)
+	// check status and delete the expired job
+	for _, cJob := range conditions {
+		skip := false
 		for _, job := range instance.Spec.Jobs {
-			if condition.Name == job.Name {
-				needClean = false
-				break;
+			if cJob.Name == job.Name {
+				// schedule has changed
+				if cJob.Schedule != job.Schedule {
+					// jobId exists and remove the job from cronManager
+					if cJob.JobId != "" {
+						err := r.CronManager.delete(cJob.JobId)
+						if err != nil {
+							log.Errorf("Failed to delete expired job %s,because of %s", cJob.Name, err.Error())
+						}
+					}
+					continue
+				}
+				skip = true
 			}
 		}
-		if needClean {
-			instance.Status.Conditions = append(instance.Status.Conditions[0:index], instance.Status.Conditions[index+1:]...)
+
+		// need remove this condition because this is not job spec
+		if skip == true {
+			leftConditions = append(leftConditions, cJob)
 		}
 	}
 
-	conditions = instance.Status.Conditions
+	// update the left to next step
+	instance.Status.Conditions = leftConditions
+	leftConditionsMap := convertConditionMaps(leftConditions)
+
+	noNeedUpdateStatus := true
 	for _, job := range instance.Spec.Jobs {
-		isSubmit := false
+		jobCondition := v1beta1.Condition{
+			Name:     job.Name,
+			Schedule: job.Schedule,
+		}
 		arr := strings.Split(instance.Spec.ScaleTargetRef.ApiVersion, "/")
 		group := arr[0]
 		version := arr[1]
@@ -141,31 +152,54 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 			RefGroup:     group,
 			RefVersion:   version,
 		}
-		j, err := CronHPAJobFactory(ref, instance, job.Name, job.Schedule, job.TargetSize, r.CronManager.scaler, r.CronManager.mapper)
-		for _, condition := range conditions {
-			if condition.Name == job.Name {
-				// mark as a old job update
-				j.SetID(condition.JobId)
-				if err != nil {
-					log.Errorf("Failed to convert job from cronHPA and skip,because of %s.", err.Error())
-					continue
-				}
-				r.CronManager.update(j)
-				isSubmit = true
-			}
-		}
-		if isSubmit == false {
-			r.CronManager.update(j)
-			isSubmit = true
-			c := &v1beta1.Condition{
-				Name:  job.Name,
-				JobId: j.ID(),
-				State: v1beta1.Submitted,
-			}
-			instance.Status.Conditions = append(instance.Status.Conditions, *c)
-		}
+		j, err := CronHPAJobFactory(ref, instance, job, r.CronManager.scaler, r.CronManager.mapper)
 
+		if err != nil {
+			//TODO eventer
+			log.Errorf("Failed to create cron hpa job %s,because of %s", job.Name, err.Error())
+		} else {
+			name := job.Name
+			if c, ok := leftConditionsMap[name]; ok {
+				jobId := c.JobId
+				j.SetID(jobId)
+			}
+			jobCondition.JobId = j.ID()
+			err := r.CronManager.createOrUpdate(j)
+			if err != nil {
+				if _, ok := err.(*NoNeedUpdate); ok {
+					continue
+				} else {
+					jobCondition.State = v1beta1.Failed
+					jobCondition.Message = fmt.Sprintf("Failed to update cron hpa job %s,because of %s", job.Name, err.Error())
+				}
+			} else {
+				jobCondition.State = v1beta1.Submitted
+			}
+		}
+		noNeedUpdateStatus = false
+		instance.Status.Conditions = updateConditions(instance.Status.Conditions, jobCondition)
+	}
+	// conditions doesn't changed and no need to update.
+	if !noNeedUpdateStatus || len(leftConditions) != len(conditions) {
 		r.Update(context.Background(), instance)
 	}
 	return reconcile.Result{}, nil
+}
+
+func convertConditionMaps(conditions []v1beta1.Condition) map[string]v1beta1.Condition {
+	m := make(map[string]v1beta1.Condition)
+	for _, condition := range conditions {
+		m[condition.Name] = condition
+	}
+	return m
+}
+
+func updateConditions(conditions []v1beta1.Condition, condition v1beta1.Condition) []v1beta1.Condition {
+	r := make([]v1beta1.Condition, 0)
+	m := convertConditionMaps(conditions)
+	m[condition.Name] = condition
+	for _, condition := range m {
+		r = append(r, condition)
+	}
+	return r
 }

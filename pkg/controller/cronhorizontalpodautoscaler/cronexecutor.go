@@ -1,9 +1,9 @@
 package cronhorizontalpodautoscaler
 
 import (
+	log "github.com/Sirupsen/logrus"
 	"github.com/ringtail/go-cron"
 	"time"
-	log "github.com/Sirupsen/logrus"
 )
 
 type CronConfig struct {
