@@ -17,6 +17,7 @@ type CronJob interface {
 	SetID(id string)
 	Equals(Job CronJob) bool
 	SchedulePlan() string
+	Ref() *TargetRef
 	Run() error
 }
 
@@ -26,6 +27,11 @@ type TargetRef struct {
 	RefKind      string
 	RefGroup     string
 	RefVersion   string
+}
+
+// needed when compare equals.
+func (tr *TargetRef) toString() string {
+	return fmt.Sprintf("%s:%s:%s:%s:%s", tr.RefName, tr.RefNamespace, tr.RefKind, tr.RefGroup, tr.RefVersion)
 }
 
 type CronJobHPA struct {
@@ -54,7 +60,7 @@ func (ch *CronJobHPA) ID() string {
 
 func (ch *CronJobHPA) Equals(j CronJob) bool {
 	// update will create a new uuid
-	if ch.id == j.ID() && ch.SchedulePlan() == j.SchedulePlan() {
+	if ch.id == j.ID() && ch.SchedulePlan() == j.SchedulePlan() && ch.Ref().toString() == j.Ref().toString() {
 		return true
 	}
 	return false
@@ -62,6 +68,10 @@ func (ch *CronJobHPA) Equals(j CronJob) bool {
 
 func (ch *CronJobHPA) SchedulePlan() string {
 	return ch.Plan
+}
+
+func (ch *CronJobHPA) Ref() *TargetRef {
+	return ch.TargetRef
 }
 
 func (ch *CronJobHPA) Run() error {

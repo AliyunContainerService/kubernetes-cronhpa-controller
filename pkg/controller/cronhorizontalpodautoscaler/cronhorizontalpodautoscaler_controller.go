@@ -23,6 +23,7 @@ import (
 	"gitlab.alibaba-inc.com/cos/kubernetes-cron-hpa-controller/pkg/apis/autoscaling/v1beta1"
 	autoscalingv1beta1 "gitlab.alibaba-inc.com/cos/kubernetes-cron-hpa-controller/pkg/apis/autoscaling/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -31,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 	"strings"
+	"time"
 )
 
 /**
@@ -98,6 +100,7 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 		if errors.IsNotFound(err) {
 			// Object not found, return.  Created objects are automatically garbage collected.
 			// For additional cleanup logic use finalizers.
+			go r.CronManager.GC()
 			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
@@ -127,6 +130,15 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 			}
 		}
 
+		if skip == false {
+			if cJob.JobId != "" {
+				err := r.CronManager.delete(cJob.JobId)
+				if err != nil {
+					log.Errorf("Failed to delete expired job %s,because of %s", cJob.Name, err.Error())
+				}
+			}
+		}
+
 		// need remove this condition because this is not job spec
 		if skip == true {
 			leftConditions = append(leftConditions, cJob)
@@ -140,8 +152,9 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 	noNeedUpdateStatus := true
 	for _, job := range instance.Spec.Jobs {
 		jobCondition := v1beta1.Condition{
-			Name:     job.Name,
-			Schedule: job.Schedule,
+			Name:          job.Name,
+			Schedule:      job.Schedule,
+			LastProbeTime: metav1.Time{Time: time.Now()},
 		}
 		arr := strings.Split(instance.Spec.ScaleTargetRef.ApiVersion, "/")
 		group := arr[0]
@@ -156,7 +169,8 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 		j, err := CronHPAJobFactory(ref, instance, job, r.CronManager.scaler, r.CronManager.mapper)
 
 		if err != nil {
-			//TODO eventer
+			jobCondition.State = v1beta1.Failed
+			jobCondition.Message = fmt.Sprintf("Failed to create cron hpa job %s,because of %s", job.Name, err.Error())
 			log.Errorf("Failed to create cron hpa job %s,because of %s", job.Name, err.Error())
 		} else {
 			name := job.Name
@@ -182,7 +196,10 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 	}
 	// conditions doesn't changed and no need to update.
 	if !noNeedUpdateStatus || len(leftConditions) != len(conditions) {
-		r.Update(context.Background(), instance)
+		err := r.Update(context.Background(), instance)
+		if err != nil {
+			log.Errorf("Failed to update cron hpa %s status,because of %s", instance.Name, err.Error())
+		}
 	}
 	return reconcile.Result{}, nil
 }

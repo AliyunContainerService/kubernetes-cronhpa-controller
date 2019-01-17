@@ -58,6 +58,8 @@ func (cm *CronManager) createOrUpdate(j CronJob) error {
 			if err != nil {
 				return fmt.Errorf("Failed to update job to cronExecutor,because of %s", err.Error())
 			}
+			//update job queue
+			cm.jobQueue[j.ID()] = j
 		} else {
 			return &NoNeedUpdate{}
 		}
@@ -122,7 +124,7 @@ func (cm *CronManager) JobResultHandler(js *cron.JobResult) {
 
 	var found = false
 	for index, c := range conditions {
-		if c.JobId == job.ID() {
+		if c.JobId == job.ID() || c.Name == job.Name() {
 			found = true
 			instance.Status.Conditions[index] = condition
 		}
@@ -180,12 +182,12 @@ func (cm *CronManager) GC() {
 			Name:      hpa.Name,
 		}, instance); err != nil {
 			if errors.IsNotFound(err) {
-				delete(cm.jobQueue, job.ID())
 				err := cm.cronExecutor.RemoveJob(job)
 				if err != nil {
 					log.Errorf("Failed to gc job %s %s %s", hpa.Namespace, hpa.Name, job.Name())
 					continue
 				}
+				delete(cm.jobQueue, job.ID())
 			}
 		}
 	}
