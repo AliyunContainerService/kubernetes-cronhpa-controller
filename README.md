@@ -111,7 +111,7 @@ spec:
      schedule: "0 */1 * * * *"
      targetSize: 3
 ```
-其中`schedule`字段的定义主要基于强大的`robfig/cron`引擎。共支持6个字段，具体意义如下：
+其中`schedule`字段的定义扩展了Linux的cron任务定义，基于`robfig/cron`引擎。共支持6个字段，具体意义如下：
 ```$xslt
 Field name   | Mandatory? | Allowed values  | Allowed special characters
 ----------   | ---------- | --------------  | --------------------------
@@ -146,7 +146,20 @@ Question mark ( ? )
 Question mark may be used instead of '*' for leaving either day-of-month or day-of-week blank.
 
 ```
-此处需要重点注意是，在kubernetes中，建议最小的时间间隔不要低于一分钟，因为低于1分钟可能会导致组件的更新导致异常与震荡。
+典型的`schedule`设置如下：
+```$xslt
+每天早上8点：0 0 8 * * * 
+每小时第5分钟：0 5 * * * 
+每隔5分钟: 0 */5 * * * 
+``` 
+更多时间设置参考<a href="https://godoc.org/github.com/robfig/cron" target="_blank">GoDoc</a>。此处需要重点注意是，在kubernetes中，建议最小的时间间隔不要低于一分钟，因为低于1分钟可能会导致组件的更新导致异常与震荡。
+
+### 常见问题
+1. 时区问题
+默认`cron-hpa-controller`会采用当前所设置的时区，所以如果需要设置和时区有关的`cron-hpa`的话，需要重点关注时区的问题。    
+
+2. 出现BUG如何快速止血    
+对于定时任务类型的controller而言，一旦出现问题由于任务引擎的复杂性，可能会很难排查和恢复。在`cron-hpa-controller`中，一旦出现异常情况，可以先kill掉Pod，此时重新拉起的controller会尝试进行自愈，如果问题依然无法解决，可以先删除相关的cronhpa，再重启controller。最后别忘了提交issues到社区得到最快速的反馈。
 
 ### 贡献代码  
 cron-hpa-controller是基于kube-builder的框架进行生成的，如果需要增加subresource，请参照kube-builder的规范。
