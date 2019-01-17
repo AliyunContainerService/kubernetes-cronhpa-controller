@@ -5,16 +5,19 @@
 设计文档：https://yuque.antfin-inc.com/op0cg2/ekiy8e/uoa2s7
 
 ### 快速入门  
-1. 安装CRD 
-```$xslt
+1. 安装CRD    
+
+```
 kubectl apply -f config/crds/autoscaling_v1beta1_cronhorizontalpodautoscaler.yaml.yaml 
 ```
-2. 部署Controller
-```$xslt
+2. 部署Controller    
+
+```    
 kubectl apply -f config/manager/manager.yaml 
 ```
-3. 部署demo应用  
-```$xslt
+3. 部署demo应用      
+
+```
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
@@ -37,8 +40,10 @@ spec:
         ports:
         - containerPort: 80
 ```
-4. 部署cronHPA
-```$xslt
+
+4. 部署cronHPA     
+
+```
 kubectl apply -f config/samples/autoscaling_v1beta1_cronhorizontalpodautoscaler.yaml.yaml 
 ```
 
@@ -163,8 +168,9 @@ Question mark may be used instead of '*' for leaving either day-of-month or day-
 
 ### 贡献代码  
 cron-hpa-controller是基于kube-builder的框架进行生成的，如果需要增加subresource，请参照kube-builder的规范。
-1. 测试代码  
-``` 
+1. 测试代码     
+
+```
 make test 
 ```
 2. 构建镜像   
