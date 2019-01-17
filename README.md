@@ -8,7 +8,7 @@
 1. 安装CRD    
 
 ```
-kubectl apply -f config/crds/autoscaling_v1beta1_cronhorizontalpodautoscaler.yaml.yaml 
+kubectl apply -f config/crds/autoscaling_v1beta1_cronhorizontalpodautoscaler.yaml 
 ```
 2. 部署Controller    
 
@@ -44,7 +44,7 @@ spec:
 4. 部署cronHPA     
 
 ```
-kubectl apply -f config/samples/autoscaling_v1beta1_cronhorizontalpodautoscaler.yaml.yaml 
+kubectl apply -f config/samples/autoscaling_v1beta1_cronhorizontalpodautoscaler.yaml 
 ```
 
 5. 查看状态  
