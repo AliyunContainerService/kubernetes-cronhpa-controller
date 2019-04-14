@@ -98,7 +98,7 @@ Status:
 Events:               <none>
 ```
 
-if the `State` of cronhpa job is `Succeed` means the last execution is successful. `Submitted` means the cronhpa job is submitted to the cron engine but haven't be executed so far.
+if the `State` of cronhpa job is `Succeed` that means the last execution is successful. `Submitted` means the cronhpa job is submitted to the cron engine but haven't be executed so far.
 
 ## Implementation Details
 The following is an example of a `CronHorizontalPodAutoscaler`. 
