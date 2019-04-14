@@ -43,7 +43,7 @@ const timeout = time.Second * 5
 func TestReconcile(t *testing.T) {
 	if os.Getenv("TRAVIS") != "" {
 		t.Skip("Skipping testing in TRAVIS-CI environment")
-		return 
+		return
 	}
 	g := gomega.NewGomegaWithT(t)
 	instance := &autoscalingv1beta1.CronHorizontalPodAutoscaler{ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"}}
