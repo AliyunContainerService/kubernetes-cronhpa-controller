@@ -19,8 +19,8 @@ limitations under the License.
 package autoscaling
 
 import (
-	v1beta1 "gitlab.alibaba-inc.com/cos/kubernetes-cron-hpa-controller/pkg/client/informers/externalversions/autoscaling/v1beta1"
-	internalinterfaces "gitlab.alibaba-inc.com/cos/kubernetes-cron-hpa-controller/pkg/client/informers/externalversions/internalinterfaces"
+	v1beta1 "github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/client/informers/externalversions/autoscaling/v1beta1"
+	internalinterfaces "github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/client/informers/externalversions/internalinterfaces"
 )
 
 // Interface provides access to each of this group's versions.

@@ -3,9 +3,9 @@ package cronhorizontalpodautoscaler
 import (
 	"context"
 	"fmt"
+	autoscalingv1beta1 "github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis/autoscaling/v1beta1"
 	log "github.com/Sirupsen/logrus"
 	"github.com/ringtail/go-cron"
-	autoscalingv1beta1 "gitlab.alibaba-inc.com/cos/kubernetes-cron-hpa-controller/pkg/apis/autoscaling/v1beta1"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

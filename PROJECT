@@ -1,3 +1,3 @@
 version: "1"
 domain: alibabacloud.com
-repo: gitlab.alibaba-inc.com/cos/kubernetes-cron-hpa-controller
+repo: github.com/AliyunContainerService/kubernetes-cronhpa-controller

@@ -17,7 +17,7 @@ limitations under the License.
 package apis
 
 import (
-	"gitlab.alibaba-inc.com/cos/kubernetes-cron-hpa-controller/pkg/apis/autoscaling/v1beta1"
+	"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis/autoscaling/v1beta1"
 )
 
 func init() {

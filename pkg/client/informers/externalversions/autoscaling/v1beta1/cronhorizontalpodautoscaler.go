@@ -21,10 +21,10 @@ package v1beta1
 import (
 	time "time"
 
-	autoscalingv1beta1 "gitlab.alibaba-inc.com/cos/kubernetes-cron-hpa-controller/pkg/apis/autoscaling/v1beta1"
-	versioned "gitlab.alibaba-inc.com/cos/kubernetes-cron-hpa-controller/pkg/client/clientset/versioned"
-	internalinterfaces "gitlab.alibaba-inc.com/cos/kubernetes-cron-hpa-controller/pkg/client/informers/externalversions/internalinterfaces"
-	v1beta1 "gitlab.alibaba-inc.com/cos/kubernetes-cron-hpa-controller/pkg/client/listers/autoscaling/v1beta1"
+	autoscalingv1beta1 "github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis/autoscaling/v1beta1"
+	versioned "github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/client/clientset/versioned"
+	internalinterfaces "github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/client/informers/externalversions/internalinterfaces"
+	v1beta1 "github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/client/listers/autoscaling/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"

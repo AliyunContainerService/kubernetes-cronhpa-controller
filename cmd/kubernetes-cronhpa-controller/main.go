@@ -19,9 +19,9 @@ package main
 import (
 	"os"
 
-	"gitlab.alibaba-inc.com/cos/kubernetes-cron-hpa-controller/pkg/apis"
-	"gitlab.alibaba-inc.com/cos/kubernetes-cron-hpa-controller/pkg/controller"
-	//"gitlab.alibaba-inc.com/cos/kubernetes-cron-hpa-controller/pkg/webhook"
+	"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis"
+	"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/controller"
+	//"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/webhook"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"

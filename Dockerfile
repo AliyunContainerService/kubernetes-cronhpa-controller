@@ -2,16 +2,16 @@
 FROM golang:1.10.3 as builder
 
 # Copy in the go src
-WORKDIR /go/src/gitlab.alibaba-inc.com/cos/kubernetes-cron-hpa-controller
+WORKDIR /go/src/github.com/AliyunContainerService/kubernetes-cronhpa-controller
 COPY pkg/    pkg/
 COPY cmd/    cmd/
 COPY vendor/ vendor/
 
 # Build
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o manager gitlab.alibaba-inc.com/cos/kubernetes-cron-hpa-controller/cmd/manager
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o kubernetes-cronhpa-controller github.com/AliyunContainerService/kubernetes-cronhpa-controller/cmd/kubernetes-cronhpa-controller
 
 # Copy the controller-manager into a thin image
-FROM ubuntu:latest
+FROM scratch
 WORKDIR /root/
-COPY --from=builder /go/src/gitlab.alibaba-inc.com/cos/kubernetes-cron-hpa-controller/manager .
-ENTRYPOINT ["./manager"]
+COPY --from=builder /go/src/github.com/AliyunContainerService/kubernetes-cronhpa-controller/kubernetes-cronhpa-controller .
+ENTRYPOINT ["./kubernetes-cronhpa-controller"]

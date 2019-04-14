@@ -19,9 +19,9 @@ limitations under the License.
 package fake
 
 import (
-	clientset "gitlab.alibaba-inc.com/cos/kubernetes-cron-hpa-controller/pkg/client/clientset/versioned"
-	autoscalingv1beta1 "gitlab.alibaba-inc.com/cos/kubernetes-cron-hpa-controller/pkg/client/clientset/versioned/typed/autoscaling/v1beta1"
-	fakeautoscalingv1beta1 "gitlab.alibaba-inc.com/cos/kubernetes-cron-hpa-controller/pkg/client/clientset/versioned/typed/autoscaling/v1beta1/fake"
+	clientset "github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/client/clientset/versioned"
+	autoscalingv1beta1 "github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/client/clientset/versioned/typed/autoscaling/v1beta1"
+	fakeautoscalingv1beta1 "github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/client/clientset/versioned/typed/autoscaling/v1beta1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"

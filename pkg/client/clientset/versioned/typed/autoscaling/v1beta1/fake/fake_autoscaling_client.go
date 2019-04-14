@@ -19,7 +19,7 @@ limitations under the License.
 package fake
 
 import (
-	v1beta1 "gitlab.alibaba-inc.com/cos/kubernetes-cron-hpa-controller/pkg/client/clientset/versioned/typed/autoscaling/v1beta1"
+	v1beta1 "github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/client/clientset/versioned/typed/autoscaling/v1beta1"
 	rest "k8s.io/client-go/rest"
 	testing "k8s.io/client-go/testing"
 )

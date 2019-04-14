@@ -1,20 +1,20 @@
 
 # Image URL to use all building/pushing image targets
-IMG ?= controller:latest
+IMG ?= kubernetes-cronhpa-controller:latest
 
-all: test manager
+all: test kubernetes-cronhpa-controller
 
 # Run tests
-test: generate fmt vet manifests
+test: generate fmt vet
 	go test ./pkg/... ./cmd/... -coverprofile cover.out
 
-# Build manager binary
-manager: generate fmt vet
-	go build -o bin/manager gitlab.alibaba-inc.com/cos/kubernetes-cron-hpa-controller/cmd/manager
+# Build kubernetes-cronhpa-controller binary
+kubernetes-cronhpa-controller: generate fmt vet
+	go build -o bin/kubernetes-cronhpa-controller github.com/AliyunContainerService/kubernetes-cronhpa-controller/cmd/kubernetes-cronhpa-controller
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
 run: generate fmt vet
-	go run ./cmd/manager/main.go
+	go run ./cmd/kubernetes-cronhpa-controller/main.go
 
 # Install CRDs into a cluster
 install: manifests
@@ -44,7 +44,7 @@ generate:
 # Build the docker image
 docker-build: test
 	docker build . -t ${IMG}
-	@echo "updating kustomize image patch file for manager resource"
+	@echo "updating kustomize image patch file for kubernetes-cronhpa-controller resource"
 	sed -i'' -e 's@image: .*@image: '"${IMG}"'@' ./config/default/manager_image_patch.yaml
 
 # Push the docker image

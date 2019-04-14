@@ -19,7 +19,7 @@ limitations under the License.
 package versioned
 
 import (
-	autoscalingv1beta1 "gitlab.alibaba-inc.com/cos/kubernetes-cron-hpa-controller/pkg/client/clientset/versioned/typed/autoscaling/v1beta1"
+	autoscalingv1beta1 "github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/client/clientset/versioned/typed/autoscaling/v1beta1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"

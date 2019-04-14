@@ -23,8 +23,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis"
 	"github.com/onsi/gomega"
-	"gitlab.alibaba-inc.com/cos/kubernetes-cron-hpa-controller/pkg/apis"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"

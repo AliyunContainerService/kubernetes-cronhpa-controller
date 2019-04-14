@@ -1,62 +1,61 @@
-## cron-hpa-controller 
-定时伸缩HPA，主要应对周期性负载峰值，可联动cluster-autoscaler实现更好的弹性。
+# kubernetes-cronhpa-controller 
+[![License](https://img.shields.io/badge/license-Apache%202-4EB1BA.svg)](https://www.apache.org/licenses/LICENSE-2.0.html)
+## Overview 
+`kubernetes-cronhpa-controller` is a kubernetes cron horizontal pod autoscaler controller using `crontab` like scheme. You can use `CronHorizontalPodAutoscaler` with any kind object defined in kubernetes which support `scale` subresource(such as `Deployment` and `StatefulSet`). 
 
-### 架构设计 
-设计文档：https://yuque.antfin-inc.com/op0cg2/ekiy8e/uoa2s7
 
-### 快速入门  
-1. 安装CRD    
-
-```
-kubectl apply -f config/crds/autoscaling_v1beta1_cronhorizontalpodautoscaler.yaml 
-```
-2. 部署Controller    
-
-```    
-kubectl apply -f config/manager/manager.yaml 
-```
-3. 部署demo应用      
-
-```
-apiVersion: apps/v1beta1
-kind: Deployment
-metadata:
-  name: nginx-deployment-basic
-  labels:
-    app: nginx
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: nginx
-  template:
-    metadata:
-      labels:
-        app: nginx
-    spec:
-      containers:
-      - name: nginx
-        image: nginx:1.7.9 
-        ports:
-        - containerPort: 80
-```
-
-4. 部署cronHPA     
-
-```
-kubectl apply -f config/samples/autoscaling_v1beta1_cronhorizontalpodautoscaler.yaml 
-```
-
-5. 查看状态  
-
+## Installation 
+1. install CRD 
 ```$xslt
-kubectl describe cronhpa cronhorizontalpodautoscaler-sample   
+kubectl apply -f config/crds/autoscaling_v1beta1_cronhorizontalpodautoscaler.yaml
 ```
-可以查看当前的cron
+2. install RBAC settings 
+```$xslt
+# create ClusterRole 
+kubectl apply -f config/rbac/rbac_role.yaml 
+# create ClusterRolebinding and ServiceAccount 
+kubectl apply -f config/rbac/rbac_role_binding.yaml 
 ```
-Every 1.0s: kubectl describe cronhpa cronhorizontalpodautoscaler-sample                                                                                                 ali-6c96cfdfcc49.local: Thu Jan 17 16:29:03 2019
+3. deploy kubernetes-cronhpa-controller 
+```$xslt
+kubectl apply -f config/deploy/deploy.yaml 
+```
+4. verify installation
+```$xslt
+kubectl get cronhpa 
 
-Name:         cronhorizontalpodautoscaler-sample
+➜  kubernetes-cronhpa-controller git:(master) ✗ kubectl get cronhpa
+NAME             AGE
+cronhpa-sample   42s
+
+kubectl get deploy kubernetes-cronhpa-controller -n kube-system -o wide 
+
+➜  kubernetes-cronhpa-controller git:(master) ✗ kubectl get deploy kubernetes-cronhpa-controller -n kube-system
+NAME                            DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE
+kubernetes-cronhpa-controller   1         1         1            1           49s
+```
+## Example 
+Please try out the examples in the examples folder.   
+
+1. Deploy sample workload and cronhpa  
+```$xslt
+kubectl apply -f examples/deployment_hpa.yaml 
+```
+
+2. Check deployment replicas  
+```$xslt
+kubectl get deploy nginx-deployment-basic 
+
+➜  kubernetes-cronhpa-controller git:(master) ✗ kubectl get deploy nginx-deployment-basic
+NAME                     DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE
+nginx-deployment-basic   2         2         2            2           9s
+```
+
+3. Describe cronhpa status 
+```$xslt
+kubectl describe cronhpa cronhpa-sample 
+
+Name:         cronhpa-sample
 Namespace:    default
 Labels:       controller-tools.k8s.io=1.0
 Annotations:  kubectl.kubernetes.io/last-applied-configuration:
@@ -64,45 +63,52 @@ Annotations:  kubectl.kubernetes.io/last-applied-configuration:
 API Version:  autoscaling.alibabacloud.com/v1beta1
 Kind:         CronHorizontalPodAutoscaler
 Metadata:
-  Creation Timestamp:  2019-01-17T08:21:00Z
+  Creation Timestamp:  2019-04-14T10:42:38Z
   Generation:          1
-  Resource Version:    22872543
-  Self Link:           /apis/autoscaling.alibabacloud.com/v1beta1/namespaces/default/cronhorizontalpodautoscalers/cronhorizontalpodautoscaler-sample
-  UID:                 d2af157d-1a30-11e9-a14f-00163e06b896
+  Resource Version:    4017247
+  Self Link:           /apis/autoscaling.alibabacloud.com/v1beta1/namespaces/default/cronhorizontalpodautoscalers/cronhpa-sample
+  UID:                 05e41c95-5ea2-11e9-8ce6-00163e12e274
 Spec:
   Jobs:
     Name:         scale-down
     Schedule:     30 */1 * * * *
     Target Size:  1
+    Name:         scale-up
+    Schedule:     0 */1 * * * *
+    Target Size:  3
   Scale Target Ref:
     API Version:  apps/v1beta2
     Kind:         Deployment
     Name:         nginx-deployment-basic
 Status:
   Conditions:
-    Job Id:           caaba32a-a2cf-45b5-ab6a-519025edd3d9
-    Last Probe Time:  2019-01-17T08:28:30Z
-    Message:          cron hpa job scale-down executed successfully
+    Job Id:           38e79271-9a42-4131-9acd-1f5bfab38802
+    Last Probe Time:  2019-04-14T10:43:02Z
+    Message:
     Name:             scale-down
     Schedule:         30 */1 * * * *
-    State:            Succeed
-Events:
-  Type    Reason   Age                    From                            Message
-  ----    ------   ----                   ----                            -------
-  Normal  Succeed  7m4s                   cron-horizontal-pod-autoscaler  cron hpa job scale-up executed successfully
-  Normal  Succeed  5m34s (x3 over 7m34s)  cron-horizontal-pod-autoscaler  cron hpa job scale-down executed successfully
-  Normal  Succeed  34s (x2 over 94s)      cron-horizontal-pod-autoscaler  cron hpa job scale-down executed successfully 
+    State:            Submitted
+    Job Id:           a7db95b6-396a-4753-91d5-23c2e73819ac
+    Last Probe Time:  2019-04-14T10:43:02Z
+    Message:
+    Name:             scale-up
+    Schedule:         0 */1 * * * *
+    State:            Submitted
+Events:               <none>
 ```
 
-### 使用指南
-一个标准的`cron-hpa`模板如下，在Spec中支持一个job的数组进行伸缩的配置。
+if the `State` of cronhpa job is `Succeed` means the last execution is successful. `Submitted` means the cronhpa job is submitted to the cron engine but haven't be executed so far.
+
+## Implementation Details
+The following is an example of a `CronHorizontalPodAutoscaler`. 
 ```$xslt
 apiVersion: autoscaling.alibabacloud.com/v1beta1
 kind: CronHorizontalPodAutoscaler
 metadata:
   labels:
     controller-tools.k8s.io: "1.0"
-  name: cronhorizontalpodautoscaler-sample
+  name: cronhpa-sample
+  namespace: default 
 spec:
    scaleTargetRef:
       apiVersion: apps/v1beta2
@@ -115,66 +121,50 @@ spec:
    - name: "scale-up"
      schedule: "0 */1 * * * *"
      targetSize: 3
-```
-其中`schedule`字段的定义扩展了Linux的cron任务定义，基于`robfig/cron`引擎。共支持6个字段，具体意义如下：
-```$xslt
-Field name   | Mandatory? | Allowed values  | Allowed special characters
-----------   | ---------- | --------------  | --------------------------
-Seconds      | Yes        | 0-59            | * / , -
-Minutes      | Yes        | 0-59            | * / , -
-Hours        | Yes        | 0-23            | * / , -
-Day of month | Yes        | 1-31            | * / , - ?
-Month        | Yes        | 1-12 or JAN-DEC | * / , -
-Day of week  | Yes        | 0-6 or SUN-SAT  | * / , - ?
-```
-其中特殊字段含义如下：
-```$xslt
-Special Characters
-Asterisk ( * )
-
-The asterisk indicates that the cron expression will match for all values of the field; e.g., using an asterisk in the 5th field (month) would indicate every month.
-
-Slash ( / )
-
-Slashes are used to describe increments of ranges. For example 3-59/15 in the 1st field (minutes) would indicate the 3rd minute of the hour and every 15 minutes thereafter. The form "*\/..." is equivalent to the form "first-last/...", that is, an increment over the largest possible range of the field. The form "N/..." is accepted as meaning "N-MAX/...", that is, starting at N, use the increment until the end of that specific range. It does not wrap around.
-
-Comma ( , )
-
-Commas are used to separate items of a list. For example, using "MON,WED,FRI" in the 5th field (day of week) would mean Mondays, Wednesdays and Fridays.
-
-Hyphen ( - )
-
-Hyphens are used to define ranges. For example, 9-17 would indicate every hour between 9am and 5pm inclusive.
-
-Question mark ( ? )
-
-Question mark may be used instead of '*' for leaving either day-of-month or day-of-week blank.
-
-```
-典型的`schedule`设置如下：
-```$xslt
-每天早上8点：0 0 8 * * * 
-每小时第5分钟：0 5 * * * 
-每隔5分钟: 0 */5 * * * 
 ``` 
-更多时间设置参考<a href="https://godoc.org/github.com/robfig/cron" target="_blank">GoDoc</a>。此处需要重点注意是，在kubernetes中，建议最小的时间间隔不要低于一分钟，因为低于1分钟可能会导致组件的更新导致异常与震荡。
+The `scaleTargetRef` is the field to specify workload to scale. If the workload supports `scale` subresource(such as `Deployment` and `StatefulSet`), `CronHorizontalPodAutoscaler` should work well. `CronHorizontalPodAutoscaler` support multi cronhpa job in one spec. 
 
-### 常见问题
-1. 时区问题
-默认`cron-hpa-controller`会采用当前所设置的时区，所以如果需要设置和时区有关的`cron-hpa`的话，需要重点关注时区的问题。    
+The cronhpa job spec need three fields:
+* name    
+  `name` should be unique in one cronhpa spec. You can distinguish different job execution status by job name.
+* schedule     
+  The scheme of `schedule` is similar with `crontab`. `kubernetes-cronhpa-controller` use an enhanced cron golang lib （<a target="_blank" href="https://github.com/ringtail/go-cron">go-cron</a>） which support more expressive rules. 
+  
+  The cron expression format is as described below: 
+  ```$xslt
 
-2. 出现BUG如何快速止血    
-对于定时任务类型的controller而言，一旦出现问题由于任务引擎的复杂性，可能会很难排查和恢复。在`cron-hpa-controller`中，一旦出现异常情况，可以先kill掉Pod，此时重新拉起的controller会尝试进行自愈，如果问题依然无法解决，可以先删除相关的cronhpa，再重启controller。最后别忘了提交issues到社区得到最快速的反馈。
+    Field name   | Mandatory? | Allowed values  | Allowed special characters
+    ----------   | ---------- | --------------  | --------------------------
+    Seconds      | Yes        | 0-59            | * / , -
+    Minutes      | Yes        | 0-59            | * / , -
+    Hours        | Yes        | 0-23            | * / , -
+    Day of month | Yes        | 1-31            | * / , - ?
+    Month        | Yes        | 1-12 or JAN-DEC | * / , -
+    Day of week  | Yes        | 0-6 or SUN-SAT  | * / , - ?    
+  ```
+  ##### Asterisk ( * )    
+  The asterisk indicates that the cron expression will match for all values of the field; e.g., using an asterisk in the 5th field (month) would indicate every month.
+  ##### Slash ( / )    
+  Slashes are used to describe increments of ranges. For example 3-59/15 in the 1st field (minutes) would indicate the 3rd minute of the hour and every 15 minutes thereafter. The form "*\/..." is equivalent to the form "first-last/...", that is, an increment over the largest possible range of the field. The form "N/..." is accepted as meaning "N-MAX/...", that is, starting at N, use the increment until the end of that specific range. It does not wrap around.    
+  ##### Comma ( , )      
+  Commas are used to separate items of a list. For example, using "MON,WED,FRI" in the 5th field (day of week) would mean Mondays, Wednesdays and Fridays.  
+  ##### Hyphen ( - )     
+  Hyphens are used to define ranges. For example, 9-17 would indicate every hour between 9am and 5pm inclusive.   
+  ##### Question mark ( ? )      
+  Question mark may be used instead of '*' for leaving either day-of-month or day-of-week blank.
+  
+  more schedule scheme please check this <a target="_blank" href="https://godoc.org/github.com/robfig/cron">doc</a>.
+                                 
+* targetSize
+  `TargetSize` is the size you desired to scale when the scheduled time arrive. 
 
-### 贡献代码  
-cron-hpa-controller是基于kube-builder的框架进行生成的，如果需要增加subresource，请参照kube-builder的规范。
-1. 测试代码     
 
-```
-make test 
-```
-2. 构建镜像   
+## Common Question  
+* Cloud `kubernetes-cronhpa-controller` and HPA work together?       
+Yes and no is the answer. `kubernetes-cronhpa-controller` can work together with hpa. But if the desired replicas is independent. So when the HPA min replicas reached `kubernetes-cronhpa-controller` will ignore the replicas and scale down and later the HPA controller will scale it up.
 
-```$xslt
-make docker-build IMG=[your_image:tag]
-```
+## Contributing
+Please check CONTRIBUTING.md. 
+
+## *License*
+This software is released under the Apache 2.0 license.

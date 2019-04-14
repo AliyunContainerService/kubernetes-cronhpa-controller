@@ -10,8 +10,6 @@ spec:
   names:
     kind: CronHorizontalPodAutoscaler
     plural: cronhorizontalpodautoscalers
-    shortNames:
-    - cronhpa
   scope: Namespaced
   validation:
     openAPIV3Schema:

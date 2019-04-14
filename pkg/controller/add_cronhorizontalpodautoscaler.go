@@ -17,7 +17,7 @@ limitations under the License.
 package controller
 
 import (
-	"gitlab.alibaba-inc.com/cos/kubernetes-cron-hpa-controller/pkg/controller/cronhorizontalpodautoscaler"
+	"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/controller/cronhorizontalpodautoscaler"
 )
 
 func init() {

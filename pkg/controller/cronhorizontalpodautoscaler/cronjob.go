@@ -2,9 +2,9 @@ package cronhorizontalpodautoscaler
 
 import (
 	"fmt"
+	"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis/autoscaling/v1beta1"
 	"github.com/satori/go.uuid"
 	"github.com/virtual-kubelet/virtual-kubelet/providers/aliyun/ingress/errors"
-	"gitlab.alibaba-inc.com/cos/kubernetes-cron-hpa-controller/pkg/apis/autoscaling/v1beta1"
 	autoscalingapi "k8s.io/api/autoscaling/v1"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime/schema"
