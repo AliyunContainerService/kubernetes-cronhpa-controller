@@ -32,6 +32,11 @@ var cfg *rest.Config
 var c client.Client
 
 func TestMain(m *testing.M) {
+
+	if os.Getenv("TRAVIS") != "" {
+		return
+	}
+
 	t := &envtest.Environment{
 		CRDDirectoryPaths: []string{filepath.Join("..", "..", "..", "..", "config", "crds")},
 	}
