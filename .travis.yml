@@ -20,7 +20,7 @@ git:
 
 # Skip the install step. Don't `go get` dependencies. Only build with the code
 # in vendor/
-install: true
+# install: true
 
 # Don't email me the results of the test runs.
 notifications:
@@ -37,4 +37,4 @@ before_script:
 # .golangci.yml file at the top level of your repo.
 script:
 #  - golangci-lint run       # run a bunch of code checkers/linters in parallel
-  - CI=on go test -v -race ./...  # Run all the tests with the race detector enabled
+  - go test -v -race ./...  # Run all the tests with the race detector enabled
