@@ -41,8 +41,8 @@ var depKey = types.NamespacedName{Name: "foo-deployment", Namespace: "default"}
 const timeout = time.Second * 5
 
 func TestReconcile(t *testing.T) {
-	if os.Getenv("CI") != "" {
-		t.Skip("Skipping testing in CI environment")
+	if os.Getenv("TRAVIS") != "" {
+		t.Skip("Skipping testing in TRAVIS-CI environment")
 	}
 	g := gomega.NewGomegaWithT(t)
 	instance := &autoscalingv1beta1.CronHorizontalPodAutoscaler{ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"}}
