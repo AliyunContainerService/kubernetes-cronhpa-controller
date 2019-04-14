@@ -35,7 +35,7 @@ NAME                            DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE
 kubernetes-cronhpa-controller   1         1         1            1           49s
 ```
 ## Example 
-Please try out the examples in the <a href="https://github.com/AliyunContainerService/kubernetes-cronhpa-controller/blob/master/examples>examples folder</a>.   
+Please try out the examples in the <a href="https://github.com/AliyunContainerService/kubernetes-cronhpa-controller/blob/master/examples">examples folder</a>.   
 
 1. Deploy sample workload and cronhpa  
 ```$xslt
