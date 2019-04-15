@@ -34,7 +34,7 @@ Please try out the examples in the <a href="https://github.com/AliyunContainerSe
 
 1. Deploy sample workload and cronhpa  
 ```$xslt
-kubectl apply -f examples/deployment_hpa.yaml 
+kubectl apply -f examples/deployment_cronhpa.yaml 
 ```
 
 2. Check deployment replicas  
