@@ -23,12 +23,6 @@ kubectl apply -f config/deploy/deploy.yaml
 ```
 4. verify installation
 ```$xslt
-kubectl get cronhpa 
-
-➜  kubernetes-cronhpa-controller git:(master) ✗ kubectl get cronhpa
-NAME             AGE
-cronhpa-sample   42s
-
 kubectl get deploy kubernetes-cronhpa-controller -n kube-system -o wide 
 
 ➜  kubernetes-cronhpa-controller git:(master) ✗ kubectl get deploy kubernetes-cronhpa-controller -n kube-system
