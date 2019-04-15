@@ -92,7 +92,55 @@ Status:
 Events:               <none>
 ```
 
-if the `State` of cronhpa job is `Succeed` that means the last execution is successful. `Submitted` means the cronhpa job is submitted to the cron engine but haven't be executed so far.
+if the `State` of cronhpa job is `Succeed` that means the last execution is successful. `Submitted` means the cronhpa job is submitted to the cron engine but haven't be executed so far. Wait for 30s seconds and check the status.
+
+```
+➜  kubernetes-cronhpa-controller git:(master) kubectl describe cronhpa cronhpa-sample
+Name:         cronhpa-sample
+Namespace:    default
+Labels:       controller-tools.k8s.io=1.0
+Annotations:  kubectl.kubernetes.io/last-applied-configuration:
+                {"apiVersion":"autoscaling.alibabacloud.com/v1beta1","kind":"CronHorizontalPodAutoscaler","metadata":{"annotations":{},"labels":{"controll...
+API Version:  autoscaling.alibabacloud.com/v1beta1
+Kind:         CronHorizontalPodAutoscaler
+Metadata:
+  Creation Timestamp:  2019-04-15T06:41:44Z
+  Generation:          1
+  Resource Version:    15673230
+  Self Link:           /apis/autoscaling.alibabacloud.com/v1beta1/namespaces/default/cronhorizontalpodautoscalers/cronhpa-sample
+  UID:                 88ea51e0-5f49-11e9-bd0b-00163e30eb10
+Spec:
+  Jobs:
+    Name:         scale-down
+    Schedule:     30 */1 * * * *
+    Target Size:  1
+    Name:         scale-up
+    Schedule:     0 */1 * * * *
+    Target Size:  3
+  Scale Target Ref:
+    API Version:  apps/v1beta2
+    Kind:         Deployment
+    Name:         nginx-deployment-basic
+Status:
+  Conditions:
+    Job Id:           84818af0-3293-43e8-8ba6-6fd3ad2c35a4
+    Last Probe Time:  2019-04-15T06:42:30Z
+    Message:          cron hpa job scale-down executed successfully
+    Name:             scale-down
+    Schedule:         30 */1 * * * *
+    State:            Succeed
+    Job Id:           f8579f11-b129-4e72-b35f-c0bdd32583b3
+    Last Probe Time:  2019-04-15T06:42:20Z
+    Message:
+    Name:             scale-up
+    Schedule:         0 */1 * * * *
+    State:            Submitted
+Events:
+  Type    Reason   Age   From                            Message
+  ----    ------   ----  ----                            -------
+  Normal  Succeed  5s    cron-horizontal-pod-autoscaler  cron hpa job scale-down executed successfully
+```
+🍻cheers! It works.
 
 ## Implementation Details
 The following is an example of a `CronHorizontalPodAutoscaler`. 
