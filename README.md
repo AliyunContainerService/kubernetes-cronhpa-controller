@@ -140,7 +140,7 @@ Events:
   ----    ------   ----  ----                            -------
   Normal  Succeed  5s    cron-horizontal-pod-autoscaler  cron hpa job scale-down executed successfully
 ```
-🍻cheers! It works.
+🍻Cheers! It works.
 
 ## Implementation Details
 The following is an example of a `CronHorizontalPodAutoscaler`. 
