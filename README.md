@@ -8,19 +8,19 @@
 ## Installation 
 1. install CRD 
 ```$xslt
-kubectl apply -f https://github.com/AliyunContainerService/kubernetes-cronhpa-controller/blob/master/config/crds/autoscaling_v1beta1_cronhorizontalpodautoscaler.yaml
+kubectl apply -f config/crds/autoscaling_v1beta1_cronhorizontalpodautoscaler.yaml
 ```
 2. install RBAC settings 
 ```$xslt
 # create ClusterRole 
-kubectl apply -f https://github.com/AliyunContainerService/kubernetes-cronhpa-controller/blob/master/config/rbac/rbac_role.yaml
+kubectl apply -f config/rbac/rbac_role.yaml
 
 # create ClusterRolebinding and ServiceAccount 
-kubectl apply -f https://github.com/AliyunContainerService/kubernetes-cronhpa-controller/blob/master/config/rbac/rbac_role_binding.yaml
+kubectl apply -f config/rbac/rbac_role_binding.yaml
 ```
 3. deploy kubernetes-cronhpa-controller 
 ```$xslt
-kubectl apply -f https://github.com/AliyunContainerService/kubernetes-cronhpa-controller/blob/master/config/deploy/deploy.yaml
+kubectl apply -f config/deploy/deploy.yaml
 ```
 4. verify installation
 ```$xslt
@@ -35,7 +35,7 @@ Please try out the examples in the <a href="https://github.com/AliyunContainerSe
 
 1. Deploy sample workload and cronhpa  
 ```$xslt
-kubectl apply -f https://github.com/AliyunContainerService/kubernetes-cronhpa-controller/blob/master/examples/deployment_cronhpa.yaml 
+kubectl apply -f examples/deployment_cronhpa.yaml 
 ```
 
 2. Check deployment replicas  
