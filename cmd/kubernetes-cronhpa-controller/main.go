@@ -17,10 +17,12 @@ limitations under the License.
 package main
 
 import (
+	"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/client/clientset/versioned/typed/autoscaling/v1beta1"
 	"os"
 
 	"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis"
 	"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/controller"
+
 	//"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/webhook"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
@@ -40,7 +42,12 @@ func main() {
 		log.Error(err, "unable to set up client config")
 		os.Exit(1)
 	}
-
+	//init hpa clientset for get to the hpa resource
+	err=v1beta1.InitHpaClient(cfg)
+	if err!=nil{
+		log.Error(err, "unable to init Hpa client")
+		os.Exit(1)
+	}
 	// Create a new Cmd to provide shared dependencies and start components
 	log.Info("setting up manager")
 	mgr, err := manager.New(cfg, manager.Options{})

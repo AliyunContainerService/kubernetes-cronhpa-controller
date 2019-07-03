@@ -21,12 +21,12 @@ package v1beta1
 import (
 	"time"
 
-	v1beta1 "github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis/autoscaling/v1beta1"
-	scheme "github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/client/clientset/versioned/scheme"
+	"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis/autoscaling/v1beta1"
+	"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/client/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	rest "k8s.io/client-go/rest"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/rest"
 )
 
 // CronHorizontalPodAutoscalersGetter has a method to return a CronHorizontalPodAutoscalerInterface.
@@ -110,52 +110,14 @@ func (c *cronHorizontalPodAutoscalers) Watch(opts v1.ListOptions) (watch.Interfa
 
 // Create takes the representation of a cronHorizontalPodAutoscaler and creates it.  Returns the server's representation of the cronHorizontalPodAutoscaler, and an error, if there is any.
 func (c *cronHorizontalPodAutoscalers) Create(cronHorizontalPodAutoscaler *v1beta1.CronHorizontalPodAutoscaler) (result *v1beta1.CronHorizontalPodAutoscaler, err error) {
-	result = &v1beta1.CronHorizontalPodAutoscaler{}
-	var kubeconfigfile *string
-	if home := homedir.HomeDir(); home != "" {
-		kubeconfigfile = flag.String("kubeconfigfile", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
-
-	} else {
-		kubeconfigfile = flag.String("kubeconfigfile", "", "absolute path to the kubeconfig file")
-	}
-	flag.Parse()
-	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfigfile)
-	if err != nil {
-		panic(err)
-	}
-	clientset, err := kubernetes.NewForConfig(config)
-	if err!=nil{
-		return  nil ,err
-	}
-	deploymentname := cronHorizontalPodAutoscaler.Spec.ScaleTargetRef.Name
-	hpas, err := clientset.AutoscalingV1().HorizontalPodAutoscalers(c.ns).List(v1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-	if hpas == nil {
-		err = c.client.Post().
-			Namespace(c.ns).
-			Resource("cronhorizontalpodautoscalers").
-			Body(cronHorizontalPodAutoscaler).
-			Do().
-			Into(result)
-	}
-	for _, hpaItem := range hpas.Items {
-		if cronHorizontalPodAutoscaler.Spec.ScaleTargetRef.Kind == "Deployment" && hpaItem.Spec.ScaleTargetRef.Name == deploymentname {
-			targetmax := hpaItem.Spec.MaxReplicas
-			targetmin := hpaItem.Status.CurrentReplicas
-			cronHorizontalPodAutoscaler.Spec.ScaleTargetRef.ApiVersion = hpaItem.Spec.ScaleTargetRef.APIVersion
-			cronHorizontalPodAutoscaler.Spec.ScaleTargetRef.Kind = hpaItem.Spec.ScaleTargetRef.Kind
-			cronHorizontalPodAutoscaler.Spec.ScaleTargetRef.Name = hpaItem.Spec.ScaleTargetRef.Name
-			cronHorizontalPodAutoscaler.Spec.Jobs[0].TargetSize = targetmin
-			cronHorizontalPodAutoscaler.Spec.Jobs[1].TargetSize = targetmax
-			err = c.client.Post().
-				Namespace(c.ns).
-				Resource("cronhorizontalpodautoscalers").
-				Body(cronHorizontalPodAutoscaler).
-				Do().
-				Into(result)
-		} else {
+		result = &v1beta1.CronHorizontalPodAutoscaler{}
+	 	clientset:=HpaClientSet
+		deploymentname := cronHorizontalPodAutoscaler.Spec.ScaleTargetRef.Name
+		hpas, err := clientset.AutoscalingV1().HorizontalPodAutoscalers(c.ns).List(v1.ListOptions{})
+		if err != nil {
+			return nil, err
+		}
+		if hpas == nil {
 			err = c.client.Post().
 				Namespace(c.ns).
 				Resource("cronhorizontalpodautoscalers").
@@ -163,10 +125,32 @@ func (c *cronHorizontalPodAutoscalers) Create(cronHorizontalPodAutoscaler *v1bet
 				Do().
 				Into(result)
 		}
-	}
+		for _, hpaItem := range hpas.Items {
+			if cronHorizontalPodAutoscaler.Spec.ScaleTargetRef.Kind == "Deployment" && hpaItem.Spec.ScaleTargetRef.Name == deploymentname {
+				targetmax := hpaItem.Spec.MaxReplicas
+				targetmin := hpaItem.Status.CurrentReplicas
+				cronHorizontalPodAutoscaler.Spec.ScaleTargetRef.ApiVersion = hpaItem.Spec.ScaleTargetRef.APIVersion
+				cronHorizontalPodAutoscaler.Spec.ScaleTargetRef.Kind = hpaItem.Spec.ScaleTargetRef.Kind
+				cronHorizontalPodAutoscaler.Spec.ScaleTargetRef.Name = hpaItem.Spec.ScaleTargetRef.Name
+				cronHorizontalPodAutoscaler.Spec.Jobs[0].TargetSize = targetmin
+				cronHorizontalPodAutoscaler.Spec.Jobs[1].TargetSize = targetmax
+				err = c.client.Post().
+					Namespace(c.ns).
+					Resource("cronhorizontalpodautoscalers").
+					Body(cronHorizontalPodAutoscaler).
+					Do().
+					Into(result)
+			} else {
+				err = c.client.Post().
+					Namespace(c.ns).
+					Resource("cronhorizontalpodautoscalers").
+					Body(cronHorizontalPodAutoscaler).
+					Do().
+					Into(result)
+			}
+		}
 	return
 }
-
 // Update takes the representation of a cronHorizontalPodAutoscaler and updates it. Returns the server's representation of the cronHorizontalPodAutoscaler, and an error, if there is any.
 func (c *cronHorizontalPodAutoscalers) Update(cronHorizontalPodAutoscaler *v1beta1.CronHorizontalPodAutoscaler) (result *v1beta1.CronHorizontalPodAutoscaler, err error) {
 	result = &v1beta1.CronHorizontalPodAutoscaler{}
