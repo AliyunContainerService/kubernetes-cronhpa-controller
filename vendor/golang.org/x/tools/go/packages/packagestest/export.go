@@ -24,6 +24,7 @@ import (
 
 	"golang.org/x/tools/go/expect"
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/internal/span"
 )
 
 var (
@@ -61,12 +62,13 @@ type Exported struct {
 	// Modules is the module description that was used to produce this exported data set.
 	Modules []Module
 
+	ExpectFileSet *token.FileSet // The file set used when parsing expectations
+
 	temp    string                       // the temporary directory that was exported to
 	primary string                       // the first non GOROOT module that was exported
 	written map[string]map[string]string // the full set of exported files
-	fset    *token.FileSet               // The file set used when parsing expectations
 	notes   []*expect.Note               // The list of expectations extracted from go source files
-	markers map[string]Range             // The set of markers extracted from go source files
+	markers map[string]span.Range        // The set of markers extracted from go source files
 }
 
 // Exporter implementations are responsible for converting from the generic description of some
@@ -136,12 +138,14 @@ func Export(t testing.TB, exporter Exporter, modules []Module) *Exported {
 			Dir:     temp,
 			Env:     append(os.Environ(), "GOPACKAGESDRIVER=off"),
 			Overlay: make(map[string][]byte),
+			Tests:   true,
+			Mode:    packages.LoadImports,
 		},
-		Modules: modules,
-		temp:    temp,
-		primary: modules[0].Name,
-		written: map[string]map[string]string{},
-		fset:    token.NewFileSet(),
+		Modules:       modules,
+		temp:          temp,
+		primary:       modules[0].Name,
+		written:       map[string]map[string]string{},
+		ExpectFileSet: token.NewFileSet(),
 	}
 	defer func() {
 		if t.Failed() || t.Skipped() {
@@ -259,7 +263,7 @@ func MustCopyFileTree(root string) map[string]interface{} {
 		if err != nil {
 			return err
 		}
-		result[fragment] = Copy(path)
+		result[filepath.ToSlash(fragment)] = Copy(path)
 		return nil
 	}); err != nil {
 		log.Panic(fmt.Sprintf("MustCopyFileTree failed: %v", err))
@@ -277,6 +281,16 @@ func (e *Exported) Cleanup() {
 		log.Printf("Skipping cleanup of temp dir: %s", e.temp)
 		return
 	}
+	// Make everything read-write so that the Module exporter's module cache can be deleted.
+	filepath.Walk(e.temp, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		if info.IsDir() {
+			os.Chmod(path, 0777)
+		}
+		return nil
+	})
 	os.RemoveAll(e.temp) // ignore errors
 	e.temp = ""
 }

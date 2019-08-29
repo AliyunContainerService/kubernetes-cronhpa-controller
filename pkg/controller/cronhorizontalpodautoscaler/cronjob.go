@@ -1,10 +1,10 @@
 package cronhorizontalpodautoscaler
 
 import (
+	"errors"
 	"fmt"
 	"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis/autoscaling/v1beta1"
 	"github.com/satori/go.uuid"
-	"github.com/virtual-kubelet/virtual-kubelet/providers/aliyun/ingress/errors"
 	autoscalingapi "k8s.io/api/autoscaling/v1"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -18,7 +18,7 @@ type CronJob interface {
 	Equals(Job CronJob) bool
 	SchedulePlan() string
 	Ref() *TargetRef
-	Run() error
+	Run() (msg string, err error)
 }
 
 type TargetRef struct {
@@ -74,14 +74,14 @@ func (ch *CronJobHPA) Ref() *TargetRef {
 	return ch.TargetRef
 }
 
-func (ch *CronJobHPA) Run() error {
+func (ch *CronJobHPA) Run() (msg string, err error) {
 	targetGK := schema.GroupKind{
 		Group: ch.TargetRef.RefGroup,
 		Kind:  ch.TargetRef.RefKind,
 	}
 	mappings, err := ch.mapper.RESTMappings(targetGK)
 	if err != nil {
-		return fmt.Errorf("Failed to create create mapping,because of %s", err.Error())
+		return "", fmt.Errorf("Failed to create create mapping,because of %s", err.Error())
 	}
 
 	var scale *autoscalingapi.Scale
@@ -97,14 +97,16 @@ func (ch *CronJobHPA) Run() error {
 	}
 
 	if found == false {
-		return fmt.Errorf("Failed to found source target %s", ch.TargetRef.RefName)
+		return "", fmt.Errorf("Failed to found source target %s", ch.TargetRef.RefName)
 	}
+	msg = fmt.Sprintf("current replicas:%d, desired replicas:%d", scale.Spec.Replicas, ch.DesiredSize)
 	scale.Spec.Replicas = int32(ch.DesiredSize)
 	_, err = ch.scaler.Scales(ch.TargetRef.RefNamespace).Update(targetGR, scale)
 	if err != nil {
-		return fmt.Errorf("Failed to scale (namespace: %s;kind: %s;name: %s) to %d,because of %s", ch.TargetRef.RefNamespace, ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.DesiredSize, err.Error())
+		return "", fmt.Errorf("Failed to scale (namespace: %s;kind: %s;name: %s) to %d,because of %s", ch.TargetRef.RefNamespace, ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.DesiredSize, err.Error())
 	}
-	return nil
+
+	return msg, nil
 }
 
 func checkRefValid(ref *TargetRef) error {
@@ -126,7 +128,7 @@ func CronHPAJobFactory(ref *TargetRef, hpaRef *v1beta1.CronHorizontalPodAutoscal
 		return nil, err
 	}
 	return &CronJobHPA{
-		id:          uuid.Must(uuid.NewV4()).String(),
+		id:          uuid.Must(uuid.NewV4(), nil).String(),
 		TargetRef:   ref,
 		HPARef:      hpaRef,
 		name:        job.Name,

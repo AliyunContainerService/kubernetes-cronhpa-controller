@@ -22,7 +22,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 	tspb "github.com/golang/protobuf/ptypes/timestamp"
-	pb "google.golang.org/genproto/googleapis/firestore/v1beta1"
+	pb "google.golang.org/genproto/googleapis/firestore/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -83,8 +83,8 @@ func (d *DocumentSnapshot) Data() map[string]interface{} {
 //   - Bool converts to bool.
 //   - String converts to string.
 //   - Integer converts int64. When setting a struct field, any signed or unsigned
-//     integer type is permitted except uint64. Overflow is detected and results in
-//     an error.
+//     integer type is permitted except uint, uint64 or uintptr. Overflow is detected
+//     and results in an error.
 //   - Double converts to float64. When setting a struct field, float32 is permitted.
 //     Overflow is detected and results in an error.
 //   - Bytes is converted to []byte.
@@ -234,6 +234,12 @@ func extractTransformsFromMap(v reflect.Value, prefix FieldPath) ([]*pb.Document
 			transforms = append(transforms, t)
 		} else if ar, ok := mi.Interface().(arrayRemove); ok {
 			t, err := arrayRemoveTransform(ar, path)
+			if err != nil {
+				return nil, err
+			}
+			transforms = append(transforms, t)
+		} else if ar, ok := mi.Interface().(increment); ok {
+			t, err := incrementTransform(ar, path)
 			if err != nil {
 				return nil, err
 			}
