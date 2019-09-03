@@ -153,6 +153,7 @@ func (cm *CronManager) Run(stopChan chan struct{}) {
 	discoveryClient := rootClientBuilder.ClientOrDie("controller-discovery")
 	cachedClient := cacheddiscovery.NewMemCacheClient(discoveryClient.Discovery())
 	restMapper := restmapper.NewDeferredDiscoveryRESTMapper(cachedClient)
+
 	go wait.Until(func() {
 		restMapper.Reset()
 	}, 30*time.Second, stopChan)
