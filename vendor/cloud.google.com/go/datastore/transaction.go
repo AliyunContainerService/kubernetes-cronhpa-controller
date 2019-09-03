@@ -20,8 +20,8 @@ import (
 
 	"cloud.google.com/go/internal/trace"
 	pb "google.golang.org/genproto/googleapis/datastore/v1"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // ErrConcurrentTransaction is returned when a transaction is rolled back due
@@ -196,7 +196,7 @@ func (t *Transaction) Commit() (c *Commit, err error) {
 		Mode:                pb.CommitRequest_TRANSACTIONAL,
 	}
 	resp, err := t.client.client.Commit(t.ctx, req)
-	if grpc.Code(err) == codes.Aborted {
+	if status.Code(err) == codes.Aborted {
 		return nil, ErrConcurrentTransaction
 	}
 	t.id = nil // mark the transaction as expired
@@ -291,9 +291,6 @@ func (t *Transaction) Put(key *Key, src interface{}) (*PendingKey, error) {
 // element of src in the same order.
 // TODO(jba): rewrite in terms of Mutate.
 func (t *Transaction) PutMulti(keys []*Key, src interface{}) (ret []*PendingKey, err error) {
-	t.ctx = trace.StartSpan(t.ctx, "cloud.google.com/go/datastore.Transaction.PutMulti")
-	defer func() { trace.EndSpan(t.ctx, err) }()
-
 	if t.id == nil {
 		return nil, errExpiredTransaction
 	}
@@ -334,9 +331,6 @@ func (t *Transaction) Delete(key *Key) error {
 // DeleteMulti is a batch version of Delete.
 // TODO(jba): rewrite in terms of Mutate.
 func (t *Transaction) DeleteMulti(keys []*Key) (err error) {
-	t.ctx = trace.StartSpan(t.ctx, "cloud.google.com/go/datastore.Transaction.DeleteMulti")
-	defer func() { trace.EndSpan(t.ctx, err) }()
-
 	if t.id == nil {
 		return errExpiredTransaction
 	}

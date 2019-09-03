@@ -50,7 +50,7 @@ func Add(mgr manager.Manager) error {
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 	var stopChan chan struct{}
-	cm := NewCronManager(mgr.GetConfig(), mgr.GetClient(), mgr.GetRecorder("cron-horizontal-pod-autoscaler"))
+	cm := NewCronManager(mgr.GetConfig(), mgr.GetClient(), mgr.GetEventRecorderFor("cron-horizontal-pod-autoscaler"))
 	r := &ReconcileCronHorizontalPodAutoscaler{Client: mgr.GetClient(), scheme: mgr.GetScheme(), CronManager: cm}
 	go func(cronManager *CronManager, stopChan chan struct{}) {
 		cm.Run(stopChan)
@@ -107,6 +107,7 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 		return reconcile.Result{}, err
 	}
 
+	log.Infof("%v is handled by cron-hpa controller", instance)
 	conditions := instance.Status.Conditions
 
 	leftConditions := make([]v1beta1.Condition, 0)
@@ -201,6 +202,8 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 			log.Errorf("Failed to update cron hpa %s status,because of %s", instance.Name, err.Error())
 		}
 	}
+
+	log.Infof("%v has been handled completely.", instance)
 	return reconcile.Result{}, nil
 }
 
