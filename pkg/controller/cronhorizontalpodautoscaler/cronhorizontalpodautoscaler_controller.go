@@ -201,6 +201,13 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 			log.Errorf("Failed to update cron hpa %s status,because of %s", instance.Name, err.Error())
 		}
 	}
+	data,_:=json.Marshal(instance.Spec.ScaleTargetRef)
+	annotations:=make(map[string]string)
+	annotations["cronhpa.kubernetes.io"]=string(data)
+	instance.Annotations=annotations
+	if err:=r.Update(context.TODO(),instance);err!=nil{
+		return reconcile.Result{},err
+	}
 	return reconcile.Result{}, nil
 }
 
