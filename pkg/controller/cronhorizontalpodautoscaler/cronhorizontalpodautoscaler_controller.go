@@ -167,7 +167,7 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 			RefVersion:   version,
 		}
 		j, err := CronHPAJobFactory(ref, instance, job, r.CronManager.scaler, r.CronManager.mapper)
-
+		err = r.CronManager.createOrUpdate(j)
 		if err != nil {
 			jobCondition.State = v1beta1.Failed
 			jobCondition.Message = fmt.Sprintf("Failed to create cron hpa job %s,because of %s", job.Name, err.Error())
