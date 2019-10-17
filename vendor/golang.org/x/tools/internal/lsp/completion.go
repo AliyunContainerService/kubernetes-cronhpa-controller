@@ -5,54 +5,99 @@
 package lsp
 
 import (
-	"bytes"
+	"context"
 	"fmt"
 	"sort"
-	"strings"
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/internal/telemetry/log"
+	"golang.org/x/tools/internal/telemetry/tag"
 )
 
-func toProtocolCompletionItems(candidates []source.CompletionItem, prefix string, pos protocol.Position, snippetsSupported, signatureHelpEnabled bool) []protocol.CompletionItem {
-	insertTextFormat := protocol.PlainTextFormat
-	if snippetsSupported {
-		insertTextFormat = protocol.SnippetTextFormat
+func (s *Server) completion(ctx context.Context, params *protocol.CompletionParams) (*protocol.CompletionList, error) {
+	uri := span.NewURI(params.TextDocument.URI)
+	view := s.session.ViewOf(uri)
+	f, err := getGoFile(ctx, view, uri)
+	if err != nil {
+		return nil, err
 	}
+	candidates, surrounding, err := source.Completion(ctx, view, f, params.Position, source.CompletionOptions{
+		DeepComplete:          s.useDeepCompletions,
+		WantDocumentaton:      s.wantCompletionDocumentation,
+		WantFullDocumentation: s.hoverKind == fullDocumentation,
+		WantUnimported:        s.wantUnimportedCompletions,
+	})
+	if err != nil {
+		log.Print(ctx, "no completions found", tag.Of("At", params.Position), tag.Of("Failure", err))
+	}
+	if candidates == nil {
+		return &protocol.CompletionList{
+			Items: []protocol.CompletionItem{},
+		}, nil
+	}
+	// We might need to adjust the position to account for the prefix.
+	rng, err := surrounding.Range()
+	if err != nil {
+		return nil, err
+	}
+	// Sort the candidates by score, since that is not supported by LSP yet.
 	sort.SliceStable(candidates, func(i, j int) bool {
 		return candidates[i].Score > candidates[j].Score
 	})
-	var items []protocol.CompletionItem
+	return &protocol.CompletionList{
+		// When using deep completions/fuzzy matching, report results as incomplete so
+		// client fetches updated completions after every key stroke.
+		IsIncomplete: s.useDeepCompletions,
+		Items:        s.toProtocolCompletionItems(candidates, rng),
+	}, nil
+}
+
+func (s *Server) toProtocolCompletionItems(candidates []source.CompletionItem, rng protocol.Range) []protocol.CompletionItem {
+	var (
+		items                  = make([]protocol.CompletionItem, 0, len(candidates))
+		numDeepCompletionsSeen int
+	)
 	for i, candidate := range candidates {
-		// Matching against the label.
-		if !strings.HasPrefix(candidate.Label, prefix) {
-			continue
+		// Limit the number of deep completions to not overwhelm the user in cases
+		// with dozens of deep completion matches.
+		if candidate.Depth > 0 {
+			if !s.useDeepCompletions {
+				continue
+			}
+			if numDeepCompletionsSeen >= source.MaxDeepCompletions {
+				continue
+			}
+			numDeepCompletionsSeen++
 		}
-		insertText, triggerSignatureHelp := labelToProtocolSnippets(candidate.Label, candidate.Kind, insertTextFormat, signatureHelpEnabled)
-		if strings.HasPrefix(insertText, prefix) {
-			insertText = insertText[len(prefix):]
+		insertText := candidate.InsertText
+		if s.insertTextFormat == protocol.SnippetTextFormat {
+			insertText = candidate.Snippet(s.usePlaceholders)
 		}
 		item := protocol.CompletionItem{
-			Label:            candidate.Label,
-			Detail:           candidate.Detail,
-			Kind:             float64(toProtocolCompletionItemKind(candidate.Kind)),
-			InsertTextFormat: insertTextFormat,
+			Label:  candidate.Label,
+			Detail: candidate.Detail,
+			Kind:   toProtocolCompletionItemKind(candidate.Kind),
 			TextEdit: &protocol.TextEdit{
 				NewText: insertText,
-				Range: protocol.Range{
-					Start: pos,
-					End:   pos,
-				},
+				Range:   rng,
 			},
-			// InsertText is deprecated in favor of TextEdit.
-			InsertText: insertText,
+			InsertTextFormat:    s.insertTextFormat,
+			AdditionalTextEdits: candidate.AdditionalTextEdits,
 			// This is a hack so that the client sorts completion results in the order
 			// according to their score. This can be removed upon the resolution of
 			// https://github.com/Microsoft/language-server-protocol/issues/348.
-			SortText: fmt.Sprintf("%05d", i),
+			SortText:      fmt.Sprintf("%05d", i),
+			FilterText:    candidate.InsertText,
+			Preselect:     i == 0,
+			Documentation: candidate.Documentation,
 		}
-		// If we are completing a function, we should trigger signature help if possible.
-		if triggerSignatureHelp && signatureHelpEnabled {
+		// Trigger signature help for any function or method completion.
+		// This is helpful even if a function does not have parameters,
+		// since we show return types as well.
+		switch item.Kind {
+		case protocol.FunctionCompletion, protocol.MethodCompletion:
 			item.Command = &protocol.Command{
 				Command: "editor.action.triggerParameterHints",
 			}
@@ -85,54 +130,4 @@ func toProtocolCompletionItemKind(kind source.CompletionItemKind) protocol.Compl
 	default:
 		return protocol.TextCompletion
 	}
-}
-
-func labelToProtocolSnippets(label string, kind source.CompletionItemKind, insertTextFormat protocol.InsertTextFormat, signatureHelpEnabled bool) (string, bool) {
-	switch kind {
-	case source.ConstantCompletionItem:
-		// The label for constants is of the format "<identifier> = <value>".
-		// We should not insert the " = <value>" part of the label.
-		if i := strings.Index(label, " ="); i >= 0 {
-			return label[:i], false
-		}
-	case source.FunctionCompletionItem, source.MethodCompletionItem:
-		var trimmed, params string
-		if i := strings.Index(label, "("); i >= 0 {
-			trimmed = label[:i]
-			params = strings.Trim(label[i:], "()")
-		}
-		if params == "" || trimmed == "" {
-			return label, true
-		}
-		// Don't add parameters or parens for the plaintext insert format.
-		if insertTextFormat == protocol.PlainTextFormat {
-			return trimmed, true
-		}
-		// If we do have signature help enabled, the user can see parameters as
-		// they type in the function, so we just return empty parentheses.
-		if signatureHelpEnabled {
-			return trimmed + "($1)", true
-		}
-		// If signature help is not enabled, we should give the user parameters
-		// that they can tab through. The insert text format follows the
-		// specification defined by Microsoft for LSP. The "$", "}, and "\"
-		// characters should be escaped.
-		r := strings.NewReplacer(
-			`\`, `\\`,
-			`}`, `\}`,
-			`$`, `\$`,
-		)
-		b := bytes.NewBufferString(trimmed)
-		b.WriteByte('(')
-		for i, p := range strings.Split(params, ",") {
-			if i != 0 {
-				b.WriteString(", ")
-			}
-			fmt.Fprintf(b, "${%v:%v}", i+1, r.Replace(strings.Trim(p, " ")))
-		}
-		b.WriteByte(')')
-		return b.String(), false
-
-	}
-	return label, false
 }

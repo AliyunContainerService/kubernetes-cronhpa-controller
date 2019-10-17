@@ -37,8 +37,6 @@ const (
 	// across Google Cloud Platform services.
 	ScopeCloudPlatform = "https://www.googleapis.com/auth/cloud-platform"
 
-	prodAddr = "https://pubsub.googleapis.com/"
-
 	maxAckDeadline = 10 * time.Minute
 )
 
@@ -86,7 +84,6 @@ func NewClient(ctx context.Context, projectID string, opts ...option.ClientOptio
 		return nil, fmt.Errorf("pubsub: %v", err)
 	}
 	pubc.SetGoogleClientInfo("gccl", version.Repo)
-	subc.SetGoogleClientInfo("gccl", version.Repo)
 	return &Client{
 		projectID: projectID,
 		pubc:      pubc,

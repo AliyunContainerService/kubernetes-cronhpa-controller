@@ -42,6 +42,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -322,6 +323,11 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 				return
 			}
 
+			factFilter := make(map[reflect.Type]bool)
+			for _, f := range a.FactTypes {
+				factFilter[reflect.TypeOf(f)] = true
+			}
+
 			pass := &analysis.Pass{
 				Analyzer:          a,
 				Fset:              fset,
@@ -329,12 +335,15 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 				OtherFiles:        cfg.NonGoFiles,
 				Pkg:               pkg,
 				TypesInfo:         info,
+				TypesSizes:        tc.Sizes,
 				ResultOf:          inputs,
 				Report:            func(d analysis.Diagnostic) { act.diagnostics = append(act.diagnostics, d) },
 				ImportObjectFact:  facts.ImportObjectFact,
 				ExportObjectFact:  facts.ExportObjectFact,
+				AllObjectFacts:    func() []analysis.ObjectFact { return facts.AllObjectFacts(factFilter) },
 				ImportPackageFact: facts.ImportPackageFact,
 				ExportPackageFact: facts.ExportPackageFact,
+				AllPackageFacts:   func() []analysis.PackageFact { return facts.AllPackageFacts(factFilter) },
 			}
 
 			t0 := time.Now()
