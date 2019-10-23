@@ -99,7 +99,7 @@ function setup_envs {
 
 header_text "using tools"
 
-which gometalinter.v2
+which golangci-lint
 
 # fetch the testing binaries - e.g. apiserver and etcd
 fetch_kb_tools
@@ -107,38 +107,47 @@ fetch_kb_tools
 # setup testing env
 setup_envs
 
-header_text "running go vet"
+header_text "running golangci-lint"
 
-go vet ./pkg/... ./cmd/...
-
-# go get is broken for golint.  re-enable this once it is fixed.
-header_text "running golint"
-
-golint -set_exit_status ./pkg/...
-
-header_text "running gometalinter.v2"
-
-gometalinter.v2 --disable-all \
-    --deadline 5m \
+golangci-lint run --disable-all \
     --enable=misspell \
-    --enable=structcheck \
     --enable=golint \
+    --enable=govet \
     --enable=deadcode \
     --enable=goimports \
     --enable=errcheck \
     --enable=varcheck \
-    --enable=goconst \
     --enable=unparam \
     --enable=ineffassign \
     --enable=nakedret \
-    --enable=interfacer \
     --enable=misspell \
     --enable=gocyclo \
-    --skip=parse \
+    --enable=gosec \
+    --deadline=5m \
     ./pkg/... ./cmd/...
-# enable this after fixing linting error
-#    --enable=gosec \
+
+# --enable=structcheck \  # doesn't understand embedded structs
+# --enable=goconst \  # complains about constants that shouldn't be constants
+# --enable=interfacer \ # just kinda strange, deprecated, has bad suggestions that defeat self-documenting code
 
 header_text "running go test"
 
-go test ./pkg/... ./cmd/... -parallel 4
+go test -race ./pkg/... ./cmd/... -parallel 4
+
+# ensure that Gopkg.{toml,lock} are up-to-date
+header_text "ensuring that Gopkg.{toml,lock} are up to date..."
+dep ensure -v -no-vendor
+! git status --porcelain | grep -E 'Gopkg.(toml|lock)'
+# it'd be nice to test that the versions matched, but it's hard to test
+# branch dependencies (like kubernetes), which mostly makes it pointless.
+# The below block checks everything else, if later desired:
+# 
+# module_deps=$(GO111MODULE=on go list -m all | sort -u | grep -v 'v0.0.0-')
+# gopkg_deps=$(dep status -f '{{.ProjectRoot}} {{.Revision}} {{.Version}}
+# ' | awk '$3 ~ /^v/ { print $1 " " $3 }' | sort -u)
+# differences=$(diff <(echo "${module_deps}") <(echo "${gopkg_deps}") | awk '/^>/ { print $2 }')
+# if [[ -n "${differences}" ]]; then
+#     echo "different versions of"
+#     echo "${differences}"
+#     exit 1
+# fi

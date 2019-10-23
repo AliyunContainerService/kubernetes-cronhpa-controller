@@ -107,7 +107,7 @@ func (cm *CronManager) JobResultHandler(js *cron.JobResult) {
 		eventType = v1.EventTypeWarning
 	} else {
 		state = autoscalingv1beta1.Succeed
-		message = fmt.Sprintf("cron hpa job %s executed successfully", job.name)
+		message = fmt.Sprintf("cron hpa job %s executed successfully. %s", job.name, js.Msg)
 		eventType = v1.EventTypeNormal
 	}
 
@@ -153,6 +153,7 @@ func (cm *CronManager) Run(stopChan chan struct{}) {
 	discoveryClient := rootClientBuilder.ClientOrDie("controller-discovery")
 	cachedClient := cacheddiscovery.NewMemCacheClient(discoveryClient.Discovery())
 	restMapper := restmapper.NewDeferredDiscoveryRESTMapper(cachedClient)
+
 	go wait.Until(func() {
 		restMapper.Reset()
 	}, 30*time.Second, stopChan)

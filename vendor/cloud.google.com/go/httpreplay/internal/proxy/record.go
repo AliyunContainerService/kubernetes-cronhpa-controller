@@ -29,6 +29,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/martian"
@@ -73,7 +74,7 @@ func ForRecording(filename string, port int) (*Proxy, error) {
 	skipAuth := skipLoggingByHost("accounts.google.com")
 	logGroup.AddRequestModifier(skipAuth)
 	logGroup.AddResponseModifier(skipAuth)
-	p.logger = NewLogger()
+	p.logger = newLogger()
 	logGroup.AddRequestModifier(p.logger)
 	logGroup.AddResponseModifier(p.logger)
 
@@ -92,45 +93,45 @@ func ForRecording(filename string, port int) (*Proxy, error) {
 	return p, nil
 }
 
-type hideTransport http.Transport
-
-func (t *hideTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	return (*http.Transport)(t).RoundTrip(req)
-}
+var (
+	configOnce sync.Once
+	cert       *x509.Certificate
+	config     *mitm.Config
+	configErr  error
+)
 
 func newProxy(filename string) (*Proxy, error) {
+	configOnce.Do(func() {
+		// Set up a man-in-the-middle configuration with a CA certificate so the proxy can
+		// participate in TLS.
+		x509c, priv, err := mitm.NewAuthority("cloud.google.com/go/httpreplay", "HTTPReplay Authority", 100*time.Hour)
+		if err != nil {
+			configErr = err
+			return
+		}
+		cert = x509c
+		config, configErr = mitm.NewConfig(x509c, priv)
+		if config != nil {
+			config.SetValidity(100 * time.Hour)
+			config.SetOrganization("cloud.google.com/go/httpreplay")
+			config.SkipTLSVerify(false)
+		}
+	})
+	if configErr != nil {
+		return nil, configErr
+	}
 	mproxy := martian.NewProxy()
-	// Set up a man-in-the-middle configuration with a CA certificate so the proxy can
-	// participate in TLS.
-	x509c, priv, err := mitm.NewAuthority("cloud.google.com/go/httpreplay", "HTTPReplay Authority", time.Hour)
-	if err != nil {
-		return nil, err
-	}
-	mc, err := mitm.NewConfig(x509c, priv)
-	if err != nil {
-		return nil, err
-	}
-	mc.SetValidity(time.Hour)
-	mc.SetOrganization("cloud.google.com/go/httpreplay")
-	mc.SkipTLSVerify(false)
-	if err != nil {
-		return nil, err
-	}
-	mproxy.SetMITM(mc)
-	ih := map[string]bool{}
-	for k, v := range ignoreHeaders {
-		ih[k] = v
-	}
+	mproxy.SetMITM(config)
 	return &Proxy{
 		mproxy:        mproxy,
-		CACert:        x509c,
+		CACert:        cert,
 		filename:      filename,
-		ignoreHeaders: ih,
+		ignoreHeaders: map[string]bool{},
 	}, nil
 }
 
 func (p *Proxy) start(port int) error {
-	l, err := net.Listen("tcp4", fmt.Sprintf(":%d", port))
+	l, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return err
 	}
@@ -149,7 +150,52 @@ func (p *Proxy) Transport() *http.Transport {
 	}
 }
 
+// RemoveRequestHeaders will remove request headers matching patterns from the log,
+// and skip matching them. Pattern is taken literally except for *, which matches any
+// sequence of characters.
+//
+// This only needs to be called during recording; the patterns will be saved to the
+// log for replay.
+func (p *Proxy) RemoveRequestHeaders(patterns []string) {
+	for _, pat := range patterns {
+		p.logger.log.Converter.registerRemoveRequestHeaders(pat)
+	}
+}
+
+// ClearHeaders will replace matching headers with CLEARED.
+//
+// This only needs to be called during recording; the patterns will be saved to the
+// log for replay.
+func (p *Proxy) ClearHeaders(patterns []string) {
+	for _, pat := range patterns {
+		p.logger.log.Converter.registerClearHeaders(pat)
+	}
+}
+
+// RemoveQueryParams will remove query parameters matching patterns from the request
+// URL before logging, and skip matching them. Pattern is taken literally except for
+// *, which matches any sequence of characters.
+//
+// This only needs to be called during recording; the patterns will be saved to the
+// log for replay.
+func (p *Proxy) RemoveQueryParams(patterns []string) {
+	for _, pat := range patterns {
+		p.logger.log.Converter.registerRemoveParams(pat)
+	}
+}
+
+// ClearQueryParams will replace matching query params in the request URL with CLEARED.
+//
+// This only needs to be called during recording; the patterns will be saved to the
+// log for replay.
+func (p *Proxy) ClearQueryParams(patterns []string) {
+	for _, pat := range patterns {
+		p.logger.log.Converter.registerClearParams(pat)
+	}
+}
+
 // IgnoreHeader will cause h to be ignored during matching on replay.
+// Deprecated: use RemoveRequestHeaders instead.
 func (p *Proxy) IgnoreHeader(h string) {
 	p.ignoreHeaders[http.CanonicalHeaderKey(h)] = true
 }
