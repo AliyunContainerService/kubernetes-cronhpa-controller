@@ -177,13 +177,17 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 		} else {
 			name := job.Name
 			if c, ok := leftConditionsMap[name]; ok {
-				// run once and return when reaches the final state
-				if job.RunOnce == true && (jobCondition.State == v1beta1.Succeed || jobCondition.State == v1beta1.Failed) {
-					continue
-				}
-
 				jobId := c.JobId
 				j.SetID(jobId)
+
+				// run once and return when reaches the final state
+				if job.RunOnce == true && (c.State == v1beta1.Succeed || c.State == v1beta1.Failed) {
+					err := r.CronManager.delete(jobId)
+					if err != nil {
+						log.Errorf("cron hpa %s(%s) has ran once but fail to exit,because of %v", name, jobId, err)
+					}
+					continue
+				}
 			}
 
 			jobCondition.JobId = j.ID()
