@@ -116,8 +116,8 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 		skip := false
 		for _, job := range instance.Spec.Jobs {
 			if cJob.Name == job.Name {
-				// schedule has changed
-				if cJob.Schedule != job.Schedule {
+				// schedule has changed or RunOnce changed
+				if cJob.Schedule != job.Schedule || cJob.RunOnce != job.RunOnce {
 					// jobId exists and remove the job from cronManager
 					if cJob.JobId != "" {
 						err := r.CronManager.delete(cJob.JobId)
@@ -155,6 +155,7 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 		jobCondition := v1beta1.Condition{
 			Name:          job.Name,
 			Schedule:      job.Schedule,
+			RunOnce:       job.RunOnce,
 			LastProbeTime: metav1.Time{Time: time.Now()},
 		}
 		arr := strings.Split(instance.Spec.ScaleTargetRef.ApiVersion, "/")
@@ -176,9 +177,15 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 		} else {
 			name := job.Name
 			if c, ok := leftConditionsMap[name]; ok {
+				// run once and return when reaches the final state
+				if job.RunOnce == true && (jobCondition.State == v1beta1.Succeed || jobCondition.State == v1beta1.Failed) {
+					continue
+				}
+
 				jobId := c.JobId
 				j.SetID(jobId)
 			}
+
 			jobCondition.JobId = j.ID()
 			err := r.CronManager.createOrUpdate(j)
 			if err != nil {

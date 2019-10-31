@@ -48,9 +48,9 @@ type CronJobHPA struct {
 	name        string
 	DesiredSize int32
 	Plan        string
-
-	scaler scaleclient.ScalesGetter
-	mapper apimeta.RESTMapper
+	RunOnce     bool
+	scaler      scaleclient.ScalesGetter
+	mapper      apimeta.RESTMapper
 }
 
 func (ch *CronJobHPA) SetID(id string) {
@@ -160,6 +160,7 @@ func CronHPAJobFactory(ref *TargetRef, hpaRef *v1beta1.CronHorizontalPodAutoscal
 		name:        job.Name,
 		Plan:        job.Schedule,
 		DesiredSize: job.TargetSize,
+		RunOnce:     job.RunOnce,
 		scaler:      scaler,
 		mapper:      mapper,
 	}, nil
