@@ -116,8 +116,8 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 		skip := false
 		for _, job := range instance.Spec.Jobs {
 			if cJob.Name == job.Name {
-				// schedule has changed or RunOnce changed
-				if cJob.Schedule != job.Schedule || cJob.RunOnce != job.RunOnce {
+				// schedule changed , RunOnce changed or TargetSize changed.
+				if cJob.Schedule != job.Schedule || cJob.RunOnce != job.RunOnce || cJob.TargetSize != job.TargetSize {
 					// jobId exists and remove the job from cronManager
 					if cJob.JobId != "" {
 						err := r.CronManager.delete(cJob.JobId)
