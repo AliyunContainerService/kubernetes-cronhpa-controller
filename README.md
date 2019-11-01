@@ -168,6 +168,8 @@ spec:
 ``` 
 The `scaleTargetRef` is the field to specify workload to scale. If the workload supports `scale` subresource(such as `Deployment` and `StatefulSet`), `CronHorizontalPodAutoscaler` should work well. `CronHorizontalPodAutoscaler` support multi cronhpa job in one spec. 
 
+⛔⛔⛔ Don't update scaleTargetRef field after creation.Delete and recreate it if necessery. ❗❗❗
+
 The cronhpa job spec need three fields:
 * name    
   `name` should be unique in one cronhpa spec. You can distinguish different job execution status by job name.
