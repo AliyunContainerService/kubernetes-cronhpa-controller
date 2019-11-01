@@ -31,7 +31,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
-	"strings"
 	"time"
 )
 
@@ -111,38 +110,48 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 	conditions := instance.Status.Conditions
 
 	leftConditions := make([]v1beta1.Condition, 0)
-	// check status and delete the expired job
-	for _, cJob := range conditions {
-		skip := false
-		for _, job := range instance.Spec.Jobs {
-			if cJob.Name == job.Name {
-				// schedule has changed or RunOnce changed
-				if cJob.Schedule != job.Schedule || cJob.RunOnce != job.RunOnce {
-					// jobId exists and remove the job from cronManager
-					if cJob.JobId != "" {
-						err := r.CronManager.delete(cJob.JobId)
-						if err != nil {
-							log.Errorf("Failed to delete expired job %s,because of %s", cJob.Name, err.Error())
+	// check scaleTargetRef and excludeDates
+	if checkGlobalParamsChanges(instance.Status, instance.Spec) {
+		for _, cJob := range conditions {
+			r.CronManager.delete(cJob.JobId)
+		}
+		// update scaleTargetRef and excludeDates
+		instance.Status.ScaleTargetRef = instance.Spec.ScaleTargetRef
+		instance.Status.ExcludeDates = instance.Spec.ExcludeDates
+	} else {
+		// check status and delete the expired job
+		for _, cJob := range conditions {
+			skip := false
+			for _, job := range instance.Spec.Jobs {
+				if cJob.Name == job.Name {
+					// schedule has changed or RunOnce changed
+					if cJob.Schedule != job.Schedule || cJob.RunOnce != job.RunOnce {
+						// jobId exists and remove the job from cronManager
+						if cJob.JobId != "" {
+							err := r.CronManager.delete(cJob.JobId)
+							if err != nil {
+								log.Errorf("Failed to delete expired job %s,because of %s", cJob.Name, err.Error())
+							}
 						}
+						continue
 					}
-					continue
-				}
-				skip = true
-			}
-		}
-
-		if skip == false {
-			if cJob.JobId != "" {
-				err := r.CronManager.delete(cJob.JobId)
-				if err != nil {
-					log.Errorf("Failed to delete expired job %s,because of %s", cJob.Name, err.Error())
+					skip = true
 				}
 			}
-		}
 
-		// need remove this condition because this is not job spec
-		if skip == true {
-			leftConditions = append(leftConditions, cJob)
+			if skip == false {
+				if cJob.JobId != "" {
+					err := r.CronManager.delete(cJob.JobId)
+					if err != nil {
+						log.Errorf("Failed to delete expired job %s,because of %s", cJob.Name, err.Error())
+					}
+				}
+			}
+
+			// need remove this condition because this is not job spec
+			if skip == true {
+				leftConditions = append(leftConditions, cJob)
+			}
 		}
 	}
 
@@ -151,6 +160,7 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 	leftConditionsMap := convertConditionMaps(leftConditions)
 
 	noNeedUpdateStatus := true
+
 	for _, job := range instance.Spec.Jobs {
 		jobCondition := v1beta1.Condition{
 			Name:          job.Name,
@@ -158,17 +168,7 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 			RunOnce:       job.RunOnce,
 			LastProbeTime: metav1.Time{Time: time.Now()},
 		}
-		arr := strings.Split(instance.Spec.ScaleTargetRef.ApiVersion, "/")
-		group := arr[0]
-		version := arr[1]
-		ref := &TargetRef{
-			RefName:      instance.Spec.ScaleTargetRef.Name,
-			RefNamespace: instance.Namespace,
-			RefKind:      instance.Spec.ScaleTargetRef.Kind,
-			RefGroup:     group,
-			RefVersion:   version,
-		}
-		j, err := CronHPAJobFactory(ref, instance, job, r.CronManager.scaler, r.CronManager.mapper)
+		j, err := CronHPAJobFactory(instance, job, r.CronManager.scaler, r.CronManager.mapper)
 
 		if err != nil {
 			jobCondition.State = v1beta1.Failed
@@ -234,4 +234,29 @@ func updateConditions(conditions []v1beta1.Condition, condition v1beta1.Conditio
 		r = append(r, condition)
 	}
 	return r
+}
+
+// if global params changed then all jobs need to be recreated.
+func checkGlobalParamsChanges(status v1beta1.CronHorizontalPodAutoscalerStatus, spec v1beta1.CronHorizontalPodAutoscalerSpec) bool {
+	if &status.ScaleTargetRef != nil && ( status.ScaleTargetRef.Kind != spec.ScaleTargetRef.Kind || status.ScaleTargetRef.ApiVersion != spec.ScaleTargetRef.ApiVersion ||
+		status.ScaleTargetRef.Name != spec.ScaleTargetRef.Name) {
+		return true
+	}
+
+	excludeDatesMap := make(map[string]bool)
+	for _, date := range spec.ExcludeDates {
+		excludeDatesMap[date] = true
+	}
+
+	for _, date := range status.ExcludeDates {
+		if excludeDatesMap[date] {
+			delete(excludeDatesMap, date)
+		}
+	}
+
+	if len(excludeDatesMap) != 0 {
+		return true
+	}
+
+	return false
 }
