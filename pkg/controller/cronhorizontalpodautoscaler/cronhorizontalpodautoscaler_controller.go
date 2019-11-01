@@ -238,7 +238,7 @@ func updateConditions(conditions []v1beta1.Condition, condition v1beta1.Conditio
 
 // if global params changed then all jobs need to be recreated.
 func checkGlobalParamsChanges(status v1beta1.CronHorizontalPodAutoscalerStatus, spec v1beta1.CronHorizontalPodAutoscalerSpec) bool {
-	if &status.ScaleTargetRef != nil && ( status.ScaleTargetRef.Kind != spec.ScaleTargetRef.Kind || status.ScaleTargetRef.ApiVersion != spec.ScaleTargetRef.ApiVersion ||
+	if &status.ScaleTargetRef != nil && (status.ScaleTargetRef.Kind != spec.ScaleTargetRef.Kind || status.ScaleTargetRef.ApiVersion != spec.ScaleTargetRef.ApiVersion ||
 		status.ScaleTargetRef.Name != spec.ScaleTargetRef.Name) {
 		return true
 	}
@@ -251,6 +251,8 @@ func checkGlobalParamsChanges(status v1beta1.CronHorizontalPodAutoscalerStatus, 
 	for _, date := range status.ExcludeDates {
 		if excludeDatesMap[date] {
 			delete(excludeDatesMap, date)
+		} else {
+			return true
 		}
 	}
 

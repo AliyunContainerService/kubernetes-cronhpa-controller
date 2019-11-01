@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis/autoscaling/v1beta1"
 	log "github.com/Sirupsen/logrus"
+	"github.com/ringtail/go-cron"
 	"github.com/satori/go.uuid"
 	autoscalingapi "k8s.io/api/autoscaling/v1"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	scaleclient "k8s.io/client-go/scale"
-	"time"
 	"strings"
-	"github.com/ringtail/go-cron"
+	"time"
 )
 
 const (

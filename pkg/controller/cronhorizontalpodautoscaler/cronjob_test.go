@@ -1,9 +1,9 @@
 package cronhorizontalpodautoscaler
 
 import (
+	"fmt"
 	"testing"
 	"time"
-	"fmt"
 )
 
 var (
