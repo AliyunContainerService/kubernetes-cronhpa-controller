@@ -62,6 +62,8 @@ type Condition struct {
 
 	Schedule string `json:"schedule"`
 
+	TargetSize int32 `json:"targetSize"`
+
 	RunOnce bool `json:"runOnce"`
 
 	State JobState `json:"state"`
@@ -99,9 +101,9 @@ type CronHorizontalPodAutoscaler struct {
 
 // CronHorizontalPodAutoscalerList contains a list of CronHorizontalPodAutoscaler
 type CronHorizontalPodAutoscalerList struct {
-	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []CronHorizontalPodAutoscaler `json:"items"`
+	metav1.TypeMeta                     `json:",inline"`
+	metav1.ListMeta                     `json:"metadata,omitempty"`
+	Items []CronHorizontalPodAutoscaler `json:"items"`
 }
 
 func init() {
