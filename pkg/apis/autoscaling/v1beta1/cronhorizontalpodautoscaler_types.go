@@ -98,9 +98,9 @@ type CronHorizontalPodAutoscaler struct {
 
 // CronHorizontalPodAutoscalerList contains a list of CronHorizontalPodAutoscaler
 type CronHorizontalPodAutoscalerList struct {
-	metav1.TypeMeta                     `json:",inline"`
-	metav1.ListMeta                     `json:"metadata,omitempty"`
-	Items []CronHorizontalPodAutoscaler `json:"items"`
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []CronHorizontalPodAutoscaler `json:"items"`
 }
 
 func init() {
