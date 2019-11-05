@@ -166,6 +166,7 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 			Name:          job.Name,
 			Schedule:      job.Schedule,
 			RunOnce:       job.RunOnce,
+			TargetSize:    job.TargetSize,
 			LastProbeTime: metav1.Time{Time: time.Now()},
 		}
 		j, err := CronHPAJobFactory(instance, job, r.CronManager.scaler, r.CronManager.mapper)
