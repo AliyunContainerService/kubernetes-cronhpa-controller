@@ -22,22 +22,22 @@ metadata:
   namespace: kube-system
   labels:
     app: kubernetes-cronhpa-controller
-    controller-tools.k8s.io: "1.0"
+    controller-tools.k8s.io: "2.0"
 spec:
   selector:
     matchLabels:
       app: kubernetes-cronhpa-controller
-      controller-tools.k8s.io: "1.0"
+      controller-tools.k8s.io: "2.0"
   template:
     metadata:
       labels:
         app: kubernetes-cronhpa-controller
-        controller-tools.k8s.io: "1.0"
+        controller-tools.k8s.io: "2.0"
     spec:
       containers:
       - command:
         - /root/kubernetes-cronhpa-controller
-        image: registry.cn-beijing.aliyuncs.com/acs/kubernetes-cronhpa-controller:v1.2.0
+        image: registry.cn-beijing.aliyuncs.com/acs/kubernetes-cronhpa-controller:v1.3.0-7f57743a-aliyun
         imagePullPolicy: Always
         name: kubernetes-cronhpa-controller
         resources:

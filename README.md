@@ -65,11 +65,14 @@ Metadata:
   Self Link:           /apis/autoscaling.alibabacloud.com/v1beta1/namespaces/default/cronhorizontalpodautoscalers/cronhpa-sample
   UID:                 05e41c95-5ea2-11e9-8ce6-00163e12e274
 Spec:
+  Exclude Dates:  <nil>
   Jobs:
     Name:         scale-down
+    Run Once:     false
     Schedule:     30 */1 * * * *
     Target Size:  1
     Name:         scale-up
+    Run Once:     false
     Schedule:     0 */1 * * * *
     Target Size:  3
   Scale Target Ref:
@@ -82,14 +85,21 @@ Status:
     Last Probe Time:  2019-04-14T10:43:02Z
     Message:
     Name:             scale-down
+    Run Once:         false
     Schedule:         30 */1 * * * *
     State:            Submitted
     Job Id:           a7db95b6-396a-4753-91d5-23c2e73819ac
     Last Probe Time:  2019-04-14T10:43:02Z
     Message:
     Name:             scale-up
+    Run Once:         false
     Schedule:         0 */1 * * * *
     State:            Submitted
+  Exclude Dates:      <nil>
+  Scale Target Ref:
+    API Version:  apps/v1beta2
+    Kind:         Deployment
+    Name:         nginx-deployment-basic
 Events:               <none>
 ```
 
@@ -100,46 +110,58 @@ if the `State` of cronhpa job is `Succeed` that means the last execution is succ
 Name:         cronhpa-sample
 Namespace:    default
 Labels:       controller-tools.k8s.io=1.0
-Annotations:  kubectl.kubernetes.io/last-applied-configuration:
-                {"apiVersion":"autoscaling.alibabacloud.com/v1beta1","kind":"CronHorizontalPodAutoscaler","metadata":{"annotations":{},"labels":{"controll...
+Annotations:  <none>
 API Version:  autoscaling.alibabacloud.com/v1beta1
 Kind:         CronHorizontalPodAutoscaler
 Metadata:
-  Creation Timestamp:  2019-04-15T06:41:44Z
+  Creation Timestamp:  2019-11-01T12:49:57Z
   Generation:          1
-  Resource Version:    15673230
+  Resource Version:    47812775
   Self Link:           /apis/autoscaling.alibabacloud.com/v1beta1/namespaces/default/cronhorizontalpodautoscalers/cronhpa-sample
-  UID:                 88ea51e0-5f49-11e9-bd0b-00163e30eb10
+  UID:                 1bbbab8a-fca6-11e9-bb47-00163e12ab74
 Spec:
+  Exclude Dates:  <nil>
   Jobs:
     Name:         scale-down
+    Run Once:     false
     Schedule:     30 */1 * * * *
-    Target Size:  1
+    Target Size:  2
     Name:         scale-up
+    Run Once:     false
     Schedule:     0 */1 * * * *
     Target Size:  3
   Scale Target Ref:
     API Version:  apps/v1beta2
     Kind:         Deployment
-    Name:         nginx-deployment-basic
+    Name:         nginx-deployment-basic2
 Status:
   Conditions:
-    Job Id:           84818af0-3293-43e8-8ba6-6fd3ad2c35a4
-    Last Probe Time:  2019-04-15T06:42:30Z
-    Message:          cron hpa job scale-down executed successfully
+    Job Id:           157260b9-489c-4a12-ad5c-f544386f0243
+    Last Probe Time:  2019-11-05T03:47:30Z
+    Message:          cron hpa job scale-down executed successfully. current replicas:3, desired replicas:2
     Name:             scale-down
+    Run Once:         false
     Schedule:         30 */1 * * * *
     State:            Succeed
-    Job Id:           f8579f11-b129-4e72-b35f-c0bdd32583b3
-    Last Probe Time:  2019-04-15T06:42:20Z
-    Message:
+    Job Id:           5bab7b8c-158a-469c-a68c-a4657486e2a5
+    Last Probe Time:  2019-11-05T03:48:00Z
+    Message:          cron hpa job scale-up executed successfully. current replicas:2, desired replicas:3
     Name:             scale-up
+    Run Once:         false
     Schedule:         0 */1 * * * *
-    State:            Submitted
+    State:            Succeed
+  Exclude Dates:      <nil>
+  Scale Target Ref:
+    API Version:  apps/v1beta2
+    Kind:         Deployment
+    Name:         nginx-deployment-basic
 Events:
-  Type    Reason   Age   From                            Message
-  ----    ------   ----  ----                            -------
-  Normal  Succeed  5s    cron-horizontal-pod-autoscaler  cron hpa job scale-down executed successfully
+  Type    Reason   Age                     From                            Message
+  ----    ------   ----                    ----                            -------
+  Normal  Succeed  42m (x5165 over 3d14h)  cron-horizontal-pod-autoscaler  cron hpa job scale-down executed successfully. current replicas:3, desired replicas:1
+  Normal  Succeed  30m                     cron-horizontal-pod-autoscaler  cron hpa job scale-up executed successfully. current replicas:1, desired replicas:3
+  Normal  Succeed  17m (x13 over 29m)      cron-horizontal-pod-autoscaler  cron hpa job scale-up executed successfully. current replicas:2, desired replicas:3
+  Normal  Succeed  4m59s (x26 over 29m)    cron-horizontal-pod-autoscaler  cron hpa job scale-down executed successfully. current replicas:3, desired replicas:2
 ```
 🍻Cheers! It works.
 
@@ -201,9 +223,18 @@ The cronhpa job spec need three fields:
   
   more schedule scheme please check this <a target="_blank" href="https://godoc.org/github.com/robfig/cron">doc</a>.
                                  
-* targetSize
+* targetSize     
   `TargetSize` is the size you desired to scale when the scheduled time arrive. 
-
+  
+* runOnce    
+  if `runOnce` is true then the job will only run and exit after the first execution.
+  
+* excludeDates      
+  excludeDates is a dates array. The job will skip the execution when the dates is matched. The minimum unit is day. If you want to skip the date(November 15th), You can specific the excludeDates like below.
+  ```$xslt
+    excludeDates:
+    - "* * * 15 11 *"
+  ```
 
 ## Common Question  
 * Cloud `kubernetes-cronhpa-controller` and HPA work together?       
