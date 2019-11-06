@@ -37,7 +37,7 @@ spec:
       containers:
       - command:
         - /root/kubernetes-cronhpa-controller
-        image: registry.cn-beijing.aliyuncs.com/acs/kubernetes-cronhpa-controller:v1.3.0-f9010e90-aliyun
+        image: registry.aliyuncs.com/ringtail/kubernetes-cronhpa-controller:v1.3.0-8e82633c-aliyun
         imagePullPolicy: Always
         name: kubernetes-cronhpa-controller
         resources:
