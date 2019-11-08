@@ -27,14 +27,17 @@ import (
 type CronHorizontalPodAutoscalerSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+	ExcludeDates   []string       `json:"excludeDates"`
 	ScaleTargetRef ScaleTargetRef `json:"scaleTargetRef"`
 	Jobs           []Job          `json:"jobs"`
 }
 
 type Job struct {
-	Name       string `json:"name"`
-	Schedule   string `json:"schedule"`
-	TargetSize int32  `json:"targetSize"`
+	Name     string `json:"name"`
+	Schedule string `json:"schedule"`
+	// job will only run once if enabled.
+	RunOnce    bool  `json:"runOnce"`
+	TargetSize int32 `json:"targetSize"`
 }
 
 type ScaleTargetRef struct {
@@ -59,6 +62,10 @@ type Condition struct {
 
 	Schedule string `json:"schedule"`
 
+	TargetSize int32 `json:"targetSize"`
+
+	RunOnce bool `json:"runOnce"`
+
 	State JobState `json:"state"`
 
 	LastProbeTime metav1.Time `json:"lastProbeTime"`
@@ -71,6 +78,8 @@ type Condition struct {
 // CronHorizontalPodAutoscalerStatus defines the observed state of CronHorizontalPodAutoscaler
 type CronHorizontalPodAutoscalerStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
+	ScaleTargetRef ScaleTargetRef `json:"scaleTargetRef"`
+	ExcludeDates   []string       `json:"excludeDates"`
 	// Important: Run "make" to regenerate code after modifying this file
 	Conditions []Condition `json:"conditions"`
 }
