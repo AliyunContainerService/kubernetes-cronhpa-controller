@@ -35,6 +35,15 @@ rules:
   - create
   - update
   - patch
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs:
+    - get
+    - list
+    - watch
+    - create
+    - update
+    - patch
 - apiGroups:
   - autoscaling.alibabacloud.com
   resources:
