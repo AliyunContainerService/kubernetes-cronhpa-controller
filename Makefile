@@ -1,7 +1,10 @@
+# build params
+PREFIX?=registry.aliyuncs.com/acs
+VERSION?=v1.3.0
+GIT_COMMIT:=$(shell git rev-parse --short HEAD)
 
 # Image URL to use all building/pushing image targets
-IMG ?= kubernetes-cronhpa-controller:latest
-
+IMG ?= $(PREFIX)/kubernetes-cronhpa-controller:$(VERSION)-$(GIT_COMMIT)-aliyun
 all: test kubernetes-cronhpa-controller
 
 # Run tests
