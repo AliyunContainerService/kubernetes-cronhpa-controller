@@ -42,8 +42,6 @@ rules:
     - list
     - watch
     - create
-    - update
-    - patch
 - apiGroups:
   - autoscaling.alibabacloud.com
   resources:
