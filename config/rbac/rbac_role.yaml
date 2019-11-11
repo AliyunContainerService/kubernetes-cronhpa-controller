@@ -39,9 +39,8 @@ rules:
   resources: ["configmaps"]
   verbs:
     - get
-    - list
-    - watch
     - create
+    - update
 - apiGroups:
   - autoscaling.alibabacloud.com
   resources:

@@ -51,8 +51,6 @@ func main() {
 	log.Info("setting up manager")
 	mgr, err := manager.New(cfg, manager.Options{
 		LeaderElection: enableLeaderElection,
-		LeaderElectionID: "cronhpa-controller-election",
-		LeaderElectionNamespace: "kube-system",
 	})
 	if err != nil {
 		log.Error(err, "unable to set up overall controller manager")
