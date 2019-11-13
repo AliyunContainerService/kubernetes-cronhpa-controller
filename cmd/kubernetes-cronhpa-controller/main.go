@@ -17,10 +17,10 @@ limitations under the License.
 package main
 
 import (
-	"os"
-
+	"flag"
 	"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis"
 	"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/controller"
+	"os"
 	//"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/webhook"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
@@ -29,7 +29,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/runtime/signals"
 )
 
+var (
+	enableLeaderElection bool
+)
+
 func main() {
+	flag.Parse()
+
 	logf.SetLogger(logf.ZapLogger(false))
 	log := logf.Log.WithName("entrypoint")
 
@@ -43,7 +49,9 @@ func main() {
 
 	// Create a new Cmd to provide shared dependencies and start components
 	log.Info("setting up manager")
-	mgr, err := manager.New(cfg, manager.Options{})
+	mgr, err := manager.New(cfg, manager.Options{
+		LeaderElection: enableLeaderElection,
+	})
 	if err != nil {
 		log.Error(err, "unable to set up overall controller manager")
 		os.Exit(1)
@@ -77,4 +85,8 @@ func main() {
 		log.Error(err, "unable to run the manager")
 		os.Exit(1)
 	}
+}
+
+func init() {
+	flag.BoolVar(&enableLeaderElection, "enableLeaderElection", false, "default false, if enabled the cronHPA would be in primary and standby mode.")
 }
