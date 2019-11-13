@@ -88,5 +88,5 @@ func main() {
 }
 
 func init() {
-	flag.BoolVar(&enableLeaderElection, "enableLeaderElection", false, "default not , if enable the cronHPA is primary and standby mode(currently cold standby)")
+	flag.BoolVar(&enableLeaderElection, "enableLeaderElection", false, "default false, if enabled the cronHPA would be in primary and standby mode.")
 }

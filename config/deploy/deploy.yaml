@@ -24,7 +24,7 @@ metadata:
     app: kubernetes-cronhpa-controller
     controller-tools.k8s.io: "2.0"
 spec:
-  replicas: 3 # The default is primary and standby mode (currently cold standby)
+  replicas: 1 # The default is primary and standby mode (currently cold standby)
 
   selector:
     matchLabels:
