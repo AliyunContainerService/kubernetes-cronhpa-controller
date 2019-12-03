@@ -27,9 +27,9 @@ import (
 type CronHorizontalPodAutoscalerSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	ExcludeDates   []string       `json:"excludeDates"`
-	ScaleTargetRef ScaleTargetRef `json:"scaleTargetRef"`
-	Jobs           []Job          `json:"jobs"`
+	ExcludeDates   			[]string       `json:"excludeDates" validate:"excludeDatesValidator"`
+	ScaleTargetRef 			ScaleTargetRef `json:"scaleTargetRef"`
+	Jobs           			[]Job          `json:"jobs"`
 }
 
 type Job struct {
