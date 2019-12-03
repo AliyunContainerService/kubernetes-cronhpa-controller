@@ -18,15 +18,19 @@ package cronhorizontalpodautoscaler
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis/autoscaling/v1beta1"
 	autoscalingv1beta1 "github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis/autoscaling/v1beta1"
 	log "github.com/Sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -72,6 +76,34 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
+	// Watch for changes to related configMap
+	configFn := handler.ToRequestsFunc(func(configMapObject handler.MapObject) []reconcile.Request {
+		var reqs []reconcile.Request
+		instanceList := &autoscalingv1beta1.CronHorizontalPodAutoscalerList{}
+		err = mgr.GetClient().List(context.TODO(), instanceList, client.InNamespace(configMapObject.Meta.GetNamespace()), client.MatchingFields{"spec.excludeDatesConfigMap":configMapObject.Meta.GetName()})
+		if err != nil {
+			log.Info("Could not find CronHorizontalPodAutoscaler instance, for reconciling configmap.")
+			return []reconcile.Request{}
+		}
+		for _, instanceItem := range instanceList.Items {
+			req := reconcile.Request{}
+			req.NamespacedName = types.NamespacedName{
+				Namespace: instanceItem.ObjectMeta.Namespace,
+				Name:      instanceItem.ObjectMeta.Name,
+			}
+			// if related cronhpa exits do enqueue
+			reqs = append(reqs, req)
+		}
+
+		return reqs
+	})
+
+	err = c.Watch(&source.Kind{Type: &corev1.ConfigMap{}}, &handler.EnqueueRequestsFromMapFunc{
+		ToRequests: configFn})
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -91,6 +123,7 @@ type ReconcileCronHorizontalPodAutoscaler struct {
 // Automatically generate RBAC rules to allow the Controller to read and write Deployments
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=autoscaling.alibabacloud.com,resources=cronhorizontalpodautoscalers,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=apps,resources=configmaps,verbs=get;watch;list;watch;create;update;patch;delete
 func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// Fetch the CronHorizontalPodAutoscaler instance
 	instance := &autoscalingv1beta1.CronHorizontalPodAutoscaler{}
@@ -104,6 +137,45 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 		}
 		// Error reading the object - requeue the request.
 		return reconcile.Result{}, err
+	}
+
+	// Fetch the configMap instance if ExcludeDatesConfigMap not empty
+	if instance.Spec.ExcludeDatesConfigMap != "" {
+		configMapFound := &corev1.ConfigMap{}
+		configMapRequest := reconcile.Request{NamespacedName:types.NamespacedName{
+			Namespace: instance.Namespace,
+			Name:      instance.Spec.ExcludeDatesConfigMap,
+		}}
+		err = r.Get(context.TODO(), configMapRequest.NamespacedName, configMapFound)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				// Object not found, return.  Created objects are automatically garbage collected.
+				// For additional cleanup logic use finalizers.
+				go r.CronManager.GC()
+				return reconcile.Result{}, nil
+			}
+			// Error reading the object - requeue the request.
+			return reconcile.Result{}, err
+		}
+		// Set instance as the owner and controller for this configmap
+		if err := controllerutil.SetControllerReference(instance, configMapFound, r.scheme); err != nil {
+			return reconcile.Result{}, err
+		}
+		// if configMap Data exits, use configMap as spec.ExcludeDates
+		if configMapFound.Data == nil || len(configMapFound.Data) == 0 {
+			instance.Spec.ExcludeDates = []string{}
+		} else {
+			// if contain excludeDates config
+			if _,ok := configMapFound.Data["excludeDates"];!ok{
+				return reconcile.Result{}, err
+			}
+			var configs []string
+			err = json.Unmarshal([]byte(configMapFound.Data["excludeDates"]), &configs)
+			if err != nil {
+
+			}
+			instance.Spec.ExcludeDates = configs
+		}
 	}
 
 	log.Infof("%v is handled by cron-hpa controller", instance)
@@ -241,6 +313,10 @@ func updateConditions(conditions []v1beta1.Condition, condition v1beta1.Conditio
 func checkGlobalParamsChanges(status v1beta1.CronHorizontalPodAutoscalerStatus, spec v1beta1.CronHorizontalPodAutoscalerSpec) bool {
 	if &status.ScaleTargetRef != nil && (status.ScaleTargetRef.Kind != spec.ScaleTargetRef.Kind || status.ScaleTargetRef.ApiVersion != spec.ScaleTargetRef.ApiVersion ||
 		status.ScaleTargetRef.Name != spec.ScaleTargetRef.Name) {
+		return true
+	}
+
+	if status.ExcludeDatesConfigMap != spec.ExcludeDatesConfigMap {
 		return true
 	}
 
