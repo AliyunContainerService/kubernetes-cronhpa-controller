@@ -18,6 +18,8 @@ package v1beta1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/ringtail/go-cron"
+	"github.com/asaskevich/govalidator"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -27,7 +29,7 @@ import (
 type CronHorizontalPodAutoscalerSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	ExcludeDates   			[]string       `json:"excludeDates"`
+	ExcludeDates   			[]string       `json:"excludeDates" valid:"excludeDatesValidator"`
 	ExcludeDatesConfigMap   string         `json:"excludeDatesConfigMap"`
 	ScaleTargetRef 			ScaleTargetRef `json:"scaleTargetRef"`
 	Jobs           			[]Job          `json:"jobs"`
@@ -109,5 +111,20 @@ type CronHorizontalPodAutoscalerList struct {
 }
 
 func init() {
+	govalidator.CustomTypeTagMap.Set("excludeDatesValidator", func(i interface{}, context interface{}) bool {
+		switch v := i.(type) {
+		case []string:
+			parser := cron.NewParser(cron.Second | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
+			for _, item := range v {
+				_, err := parser.Parse(item)
+				if err != nil {
+					return false
+				}
+			}
+			return true
+		}
+		return false
+	})
+
 	SchemeBuilder.Register(&CronHorizontalPodAutoscaler{}, &CronHorizontalPodAutoscalerList{})
 }
