@@ -16,5 +16,5 @@ RUN apk add --no-cache tzdata
 WORKDIR /root/
 COPY --from=builder /go/src/github.com/AliyunContainerService/kubernetes-cronhpa-controller/kubernetes-cronhpa-controller .
 COPY docker-entrypoint.sh .
-ENTRYPOINT  ["docker-entrypoint.sh"]
+ENTRYPOINT  ["/root/docker-entrypoint.sh"]
 CMD ["/root/kubernetes-cronhpa-controller"]
