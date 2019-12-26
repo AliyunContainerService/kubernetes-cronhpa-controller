@@ -36,10 +36,7 @@ spec:
         controller-tools.k8s.io: "2.0"
     spec:
       containers:
-      - command:
-        - /root/kubernetes-cronhpa-controller
-        #- -enableLeaderElection=true
-        image: registry.aliyuncs.com/ringtail/kubernetes-cronhpa-controller:v1.3.0-8e82633c-aliyun
+      - image: registry.aliyuncs.com/ringtail/kubernetes-cronhpa-controller:v1.3.0-ce5e66ea-aliyun
         imagePullPolicy: Always
         name: kubernetes-cronhpa-controller
         env:
