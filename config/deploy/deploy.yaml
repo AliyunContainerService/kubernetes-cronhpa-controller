@@ -42,6 +42,9 @@ spec:
         env:
         - name: TZ
           value: "Asia/Shanghai"
+        volumeMounts:
+          - name: zoneinfo
+            mountPath: /usr/share/zoneinfo
         resources:
           limits:
             cpu: 100m
@@ -50,3 +53,7 @@ spec:
             cpu: 100m
             memory: 100Mi
       serviceAccount: kubernetes-cronhpa-controller
+      volumes:
+      - name: zoneinfo
+        hostPath:
+          path: /usr/share/zoneinfo
