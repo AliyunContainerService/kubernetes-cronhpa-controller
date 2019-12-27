@@ -36,15 +36,15 @@ spec:
         controller-tools.k8s.io: "2.0"
     spec:
       containers:
-        - command:
-            - /root/kubernetes-cronhpa-controller
-          #- -enableLeaderElection=true
-          image: registry.aliyuncs.com/ringtail/kubernetes-cronhpa-controller:v1.3.0-8e82633c-aliyun
+       -  image: registry.aliyuncs.com/ringtail/kubernetes-cronhpa-controller:v1.3.0-8e82633c-aliyun
           imagePullPolicy: Always
           name: kubernetes-cronhpa-controller
           env:
             - name: TZ
               value: "Asia/Shanghai"
+          volumeMounts:
+            - name: zoneinfo
+              mountPath: /usr/share/zoneinfo
           resources:
             limits:
               cpu: 100m
@@ -52,4 +52,8 @@ spec:
             requests:
               cpu: 100m
               memory: 100Mi
+      volumes:
+        - name: zoneinfo
+          hostPath:
+            path: /usr/share/zoneinfo
       serviceAccount: kubernetes-cronhpa-controller
