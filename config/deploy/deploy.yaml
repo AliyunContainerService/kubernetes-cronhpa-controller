@@ -52,8 +52,8 @@ spec:
             requests:
               cpu: 100m
               memory: 100Mi
+      serviceAccount: kubernetes-cronhpa-controller
       volumes:
         - name: zoneinfo
           hostPath:
             path: /usr/share/zoneinfo
-      serviceAccount: kubernetes-cronhpa-controller
