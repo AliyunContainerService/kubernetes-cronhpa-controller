@@ -50,3 +50,4 @@ spec:
             cpu: 100m
             memory: 100Mi
       serviceAccount: kubernetes-cronhpa-controller
+
