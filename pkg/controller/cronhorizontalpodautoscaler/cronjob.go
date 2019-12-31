@@ -122,7 +122,7 @@ func (ch *CronJobHPA) Run() (msg string, err error) {
 			}
 		}
 
-		if found == false {
+		if !found {
 			return "", fmt.Errorf("Failed to found source target %s", ch.TargetRef.RefName)
 		}
 

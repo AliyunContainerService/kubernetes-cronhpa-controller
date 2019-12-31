@@ -55,6 +55,9 @@ func TestMain(m *testing.M) {
 	}
 
 	code := m.Run()
-	t.Stop()
+	err = t.Stop()
+	if err != nil {
+		panic(err)
+	}
 	os.Exit(code)
 }

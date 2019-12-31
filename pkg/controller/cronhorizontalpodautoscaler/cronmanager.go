@@ -32,10 +32,10 @@ func (n NoNeedUpdate) Error() string {
 
 type CronManager struct {
 	sync.Mutex
-	cfg           *rest.Config
-	client        client.Client
-	jobQueue      map[string]CronJob
-	cronProcessor CronProcessor
+	cfg      *rest.Config
+	client   client.Client
+	jobQueue map[string]CronJob
+	//cronProcessor CronProcessor
 	cronExecutor  CronExecutor
 	mapper        *restmapper.DeferredDiscoveryRESTMapper
 	scaler        scale.ScalesGetter
@@ -132,7 +132,7 @@ func (cm *CronManager) JobResultHandler(js *cron.JobResult) {
 		}
 	}
 
-	if found == false {
+	if !found {
 		instance.Status.Conditions = append(instance.Status.Conditions, condition)
 	}
 
