@@ -15,7 +15,7 @@ helm install kubernetes-cronhpa-controller/config/depoly/ack-kubernetes-cronhpa-
 
 4. verify installation
 ```$xslt
-kubectl get deploy -n kube-system -o wide 
+kubectl get deploy -n kube-system 
 
 NAME                                                              READY   UP-TO-DATE   AVAILABLE   AGE
 ack-alibaba-cloud-metrics-adapter                                 1/1     1            1           18h
