@@ -10,7 +10,7 @@ kubernetes-cronhpa-controller
 1. use helm chart install kubernetes-cronhpa-controller
 
 ```
-helm install kubernetes-cronhpa-controller/config/depoly/ack-kubernetes-cronhpa-controller  --name ack-kubernetes-cronhpa-controller  --namespace kube-system
+helm install kubernetes-cronhpa-controller/config/depoly/ack-kubernetes-cronhpa-controller  --namespace kube-system
 ```
 
 4. verify installation
@@ -18,7 +18,7 @@ helm install kubernetes-cronhpa-controller/config/depoly/ack-kubernetes-cronhpa-
 kubectl get deploy -n kube-system 
 
 NAME                                                              READY   UP-TO-DATE   AVAILABLE   AGE
-ack-kubernetes-cronhpa-controller-ack-kubernetes-cronhpa-contro   1/1     1            1           20h
+ack-kubernetes-cronhpa-controller   1/1     1            1           20h
 ```
 ## Example 
 Please try out the examples in the <a href="https://github.com/AliyunContainerService/kubernetes-cronhpa-controller/blob/master/examples">examples folder</a>.   
