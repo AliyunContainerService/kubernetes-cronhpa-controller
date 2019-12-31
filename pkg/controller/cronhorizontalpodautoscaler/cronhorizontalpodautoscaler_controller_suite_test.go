@@ -38,18 +38,26 @@ func TestMain(m *testing.M) {
 	if os.Getenv("TRAVIS") != "" {
 		return
 	}
+
+	var err error
 	t := &envtest.Environment{
 		CRDDirectoryPaths: []string{filepath.Join("..", "..", "..", "config", "crds")},
 	}
-	apis.AddToScheme(scheme.Scheme)
+	err = apis.AddToScheme(scheme.Scheme)
 
-	var err error
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	if cfg, err = t.Start(); err != nil {
 		log.Fatal(err)
 	}
 
 	code := m.Run()
-	t.Stop()
+	err = t.Stop()
+	if err != nil {
+		log.Fatal(err)
+	}
 	os.Exit(code)
 }
 
@@ -69,8 +77,8 @@ func SetupTestReconcile(inner reconcile.Reconciler) (reconcile.Reconciler, chan 
 func StartTestManager(mgr manager.Manager, g *gomega.GomegaWithT) (chan struct{}, *sync.WaitGroup) {
 	stop := make(chan struct{})
 	wg := &sync.WaitGroup{}
+	wg.Add(1)
 	go func() {
-		wg.Add(1)
 		g.Expect(mgr.Start(stop)).NotTo(gomega.HaveOccurred())
 		wg.Done()
 	}()
