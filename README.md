@@ -1,4 +1,5 @@
-# kubernetes-cronhpa-controller 
+kubernetes-cronhpa-controller 
+
 [![License](https://img.shields.io/badge/license-Apache%202-4EB1BA.svg)](https://www.apache.org/licenses/LICENSE-2.0.html)
 [![Build Status](https://travis-ci.org/AliyunContainerService/kubernetes-cronhpa-controller.svg?branch=master)](https://travis-ci.org/AliyunContainerService/kubernetes-cronhpa-controller)
 ## Overview 
@@ -6,29 +7,19 @@
 
 
 ## Installation 
-1. install CRD 
-```$xslt
-kubectl apply -f config/crds/autoscaling_v1beta1_cronhorizontalpodautoscaler.yaml
-```
-2. install RBAC settings 
-```$xslt
-# create ClusterRole 
-kubectl apply -f config/rbac/rbac_role.yaml
+1. use helm chart install kubernetes-cronhpa-controller
 
-# create ClusterRolebinding and ServiceAccount 
-kubectl apply -f config/rbac/rbac_role_binding.yaml
 ```
-3. deploy kubernetes-cronhpa-controller 
-```$xslt
-kubectl apply -f config/deploy/deploy.yaml
+helm install kubernetes-cronhpa-controller/config/depoly/ack-kubernetes-cronhpa-controller  --name ack-kubernetes-cronhpa-controller  --namespace kube-system
 ```
+
 4. verify installation
 ```$xslt
-kubectl get deploy kubernetes-cronhpa-controller -n kube-system -o wide 
+kubectl get deploy -n kube-system -o wide 
 
-➜  kubernetes-cronhpa-controller git:(master) ✗ kubectl get deploy kubernetes-cronhpa-controller -n kube-system
-NAME                            DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE
-kubernetes-cronhpa-controller   1         1         1            1           49s
+NAME                                                              READY   UP-TO-DATE   AVAILABLE   AGE
+ack-alibaba-cloud-metrics-adapter                                 1/1     1            1           18h
+ack-kubernetes-cronhpa-controller-ack-kubernetes-cronhpa-contro   1/1     1            1           20h
 ```
 ## Example 
 Please try out the examples in the <a href="https://github.com/AliyunContainerService/kubernetes-cronhpa-controller/blob/master/examples">examples folder</a>.   
@@ -187,7 +178,7 @@ spec:
    - name: "scale-up"
      schedule: "0 */1 * * * *"
      targetSize: 3
-``` 
+```
 The `scaleTargetRef` is the field to specify workload to scale. If the workload supports `scale` subresource(such as `Deployment` and `StatefulSet`), `CronHorizontalPodAutoscaler` should work well. `CronHorizontalPodAutoscaler` support multi cronhpa job in one spec. 
 
 The cronhpa job spec need three fields:
@@ -220,7 +211,7 @@ The cronhpa job spec need three fields:
   Question mark may be used instead of '*' for leaving either day-of-month or day-of-week blank.
   
   more schedule scheme please check this <a target="_blank" href="https://godoc.org/github.com/robfig/cron">doc</a>.
-                                 
+  
 * targetSize     
   `TargetSize` is the size you desired to scale when the scheduled time arrive. 
   
