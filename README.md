@@ -18,7 +18,6 @@ helm install kubernetes-cronhpa-controller/config/depoly/ack-kubernetes-cronhpa-
 kubectl get deploy -n kube-system 
 
 NAME                                                              READY   UP-TO-DATE   AVAILABLE   AGE
-ack-alibaba-cloud-metrics-adapter                                 1/1     1            1           18h
 ack-kubernetes-cronhpa-controller-ack-kubernetes-cronhpa-contro   1/1     1            1           20h
 ```
 ## Example 
