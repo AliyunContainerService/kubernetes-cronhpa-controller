@@ -113,7 +113,10 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 	// check scaleTargetRef and excludeDates
 	if checkGlobalParamsChanges(instance.Status, instance.Spec) {
 		for _, cJob := range conditions {
-			r.CronManager.delete(cJob.JobId)
+			err := r.CronManager.delete(cJob.JobId)
+			if err != nil {
+				log.Errorf("Failed to delete job %s,because of %v", cJob.Name, err)
+			}
 		}
 		// update scaleTargetRef and excludeDates
 		instance.Status.ScaleTargetRef = instance.Spec.ScaleTargetRef
@@ -139,7 +142,7 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 				}
 			}
 
-			if skip == false {
+			if !skip {
 				if cJob.JobId != "" {
 					err := r.CronManager.delete(cJob.JobId)
 					if err != nil {
@@ -149,7 +152,7 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 			}
 
 			// need remove this condition because this is not job spec
-			if skip == true {
+			if skip {
 				leftConditions = append(leftConditions, cJob)
 			}
 		}
@@ -182,7 +185,7 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 				j.SetID(jobId)
 
 				// run once and return when reaches the final state
-				if job.RunOnce == true && (c.State == v1beta1.Succeed || c.State == v1beta1.Failed) {
+				if job.RunOnce && (c.State == v1beta1.Succeed || c.State == v1beta1.Failed) {
 					err := r.CronManager.delete(jobId)
 					if err != nil {
 						log.Errorf("cron hpa %s(%s) has ran once but fail to exit,because of %v", name, jobId, err)
@@ -256,10 +259,6 @@ func checkGlobalParamsChanges(status v1beta1.CronHorizontalPodAutoscalerStatus, 
 			return true
 		}
 	}
-
-	if len(excludeDatesMap) != 0 {
-		return true
-	}
-
-	return false
+	// excludeMap change
+	return len(excludeDatesMap) != 0
 }

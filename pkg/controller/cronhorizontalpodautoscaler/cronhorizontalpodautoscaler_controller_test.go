@@ -51,6 +51,11 @@ func TestReconcile(t *testing.T) {
 	// Setup the Manager and Controller.  Wrap the Controller Reconcile function so it writes each request to a
 	// channel when it is finished.
 	mgr, err := manager.New(cfg, manager.Options{})
+
+	if err != nil {
+		t.Fatal("failed to create new manager")
+	}
+
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 	c = mgr.GetClient()
 
@@ -73,7 +78,12 @@ func TestReconcile(t *testing.T) {
 		return
 	}
 	g.Expect(err).NotTo(gomega.HaveOccurred())
-	defer c.Delete(context.TODO(), instance)
+	defer func() {
+		err := c.Delete(context.TODO(), instance)
+		if err != nil {
+			t.Log("failed to delete instance")
+		}
+	}()
 	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(expectedRequest)))
 
 	deploy := &appsv1.Deployment{}

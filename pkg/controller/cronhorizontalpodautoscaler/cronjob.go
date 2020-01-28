@@ -117,12 +117,11 @@ func (ch *CronJobHPA) Run() (msg string, err error) {
 				break
 			}
 		}
-
 		time.Sleep(updateRetryInterval)
 		times = times + 1
 	}
 
-	return msg, nil
+	return msg, err
 }
 
 func (ch *CronJobHPA) ScaleHPA() (msg string, err error) {
@@ -161,6 +160,7 @@ func (ch *CronJobHPA) ScaleHPA() (msg string, err error) {
 		if err == nil {
 			found = true
 			break
+
 		}
 	}
 
