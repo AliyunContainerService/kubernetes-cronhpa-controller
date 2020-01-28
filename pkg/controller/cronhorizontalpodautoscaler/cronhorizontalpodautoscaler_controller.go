@@ -169,7 +169,7 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 			TargetSize:    job.TargetSize,
 			LastProbeTime: metav1.Time{Time: time.Now()},
 		}
-		j, err := CronHPAJobFactory(instance, job,r.CronManager.scaler, r.CronManager.mapper,r.Client)
+		j, err := CronHPAJobFactory(instance, job, r.CronManager.scaler, r.CronManager.mapper, r.Client)
 
 		if err != nil {
 			jobCondition.State = v1beta1.Failed

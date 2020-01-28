@@ -1,6 +1,7 @@
 package cronhorizontalpodautoscaler
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis/autoscaling/v1beta1"
@@ -9,14 +10,12 @@ import (
 	"github.com/satori/go.uuid"
 	autoscalingapi "k8s.io/api/autoscaling/v1"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	scaleclient "k8s.io/client-go/scale"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strings"
 	"time"
-	"context"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/kubernetes/staging/src/k8s.io/api/autoscaling/v1"
 )
 
 const (
@@ -110,12 +109,12 @@ func (ch *CronJobHPA) Run() (msg string, err error) {
 		if ch.TargetRef.RefKind == "HorizontalPodAutoscaler" {
 			msg, err = ch.ScaleHPA()
 			if err != nil {
-				break;
+				break
 			}
 		} else {
 			msg, err = ch.ScalePlainRef()
 			if err != nil {
-				break;
+				break
 			}
 		}
 
@@ -131,7 +130,7 @@ func (ch *CronJobHPA) ScaleHPA() (msg string, err error) {
 	var targetGR schema.GroupResource
 
 	ctx := context.Background()
-	hpa := v1.HorizontalPodAutoscaler{}
+	hpa := &autoscalingapi.HorizontalPodAutoscaler{}
 	err = ch.client.Get(ctx, types.NamespacedName{Namespace: ch.HPARef.Namespace, Name: ch.TargetRef.RefName}, hpa)
 
 	if err != nil {
@@ -170,7 +169,6 @@ func (ch *CronJobHPA) ScaleHPA() (msg string, err error) {
 	}
 
 	updateHPA := false
-	updateCronHPA := false
 
 	if ch.DesiredSize > hpa.Spec.MaxReplicas {
 		hpa.Spec.MaxReplicas = ch.DesiredSize
@@ -184,15 +182,19 @@ func (ch *CronJobHPA) ScaleHPA() (msg string, err error) {
 
 	if hpa.Status.CurrentReplicas < ch.DesiredSize {
 		*hpa.Spec.MinReplicas = ch.DesiredSize
+		updateHPA = true
 	}
 
-	//if hpa.Status.CurrentReplicas > ch.DesiredSize {
-	// 		skip change replicas,
-	//}
+	if hpa.Status.CurrentReplicas > ch.DesiredSize {
+		// skip change replicas and exit
+		return "", nil
+	}
 
-	err := ch.client.Update(ctx, hpa)
-	if err != nil {
-		return "", fmt.Errorf("Failed to change hpa %s min replicas,because of %v", hpa.Name, err)
+	if updateHPA {
+		err = ch.client.Update(ctx, hpa)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	msg = fmt.Sprintf("current replicas:%d, desired replicas:%d", scale.Spec.Replicas, ch.DesiredSize)
