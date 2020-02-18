@@ -48,7 +48,7 @@ func (cm *CronManager) createOrUpdate(j CronJob) error {
 	if _, ok := cm.jobQueue[j.ID()]; !ok {
 		err := cm.cronExecutor.AddJob(j)
 		if err != nil {
-			return fmt.Errorf("Failed to add job to cronExecutor,because of %s", err.Error())
+			return fmt.Errorf("Failed to add job to cronExecutor,because of %v", err)
 		}
 		cm.jobQueue[j.ID()] = j
 	} else {
@@ -56,7 +56,7 @@ func (cm *CronManager) createOrUpdate(j CronJob) error {
 		if ok := job.Equals(j); !ok {
 			err := cm.cronExecutor.Update(j)
 			if err != nil {
-				return fmt.Errorf("Failed to update job to cronExecutor,because of %s", err.Error())
+				return fmt.Errorf("Failed to update job to cronExecutor,because of %v", err)
 			}
 			//update job queue
 			cm.jobQueue[j.ID()] = j
@@ -73,7 +73,7 @@ func (cm *CronManager) delete(id string) error {
 	if j, ok := cm.jobQueue[id]; ok {
 		err := cm.cronExecutor.RemoveJob(j)
 		if err != nil {
-			return fmt.Errorf("Failed to remove job from cronExecutor,because of %s", err.Error())
+			return fmt.Errorf("Failed to remove job from cronExecutor,because of %v", err)
 		}
 		delete(cm.jobQueue, id)
 	}
@@ -90,7 +90,7 @@ func (cm *CronManager) JobResultHandler(js *cron.JobResult) {
 	}, instance)
 
 	if e != nil {
-		log.Errorf("Failed to fetch CronHorizontalPodAutoscaler job:%s namespace:%s cronHPA:%s,because of %s", job.Name(), cronHpa.Namespace, cronHpa.Name, e.Error())
+		log.Errorf("Failed to fetch CronHorizontalPodAutoscaler job:%s namespace:%s cronHPA:%s,because of %v", job.Name(), cronHpa.Namespace, cronHpa.Name, e)
 		return
 	}
 
@@ -103,7 +103,7 @@ func (cm *CronManager) JobResultHandler(js *cron.JobResult) {
 	err := js.Error
 	if err != nil {
 		state = autoscalingv1beta1.Failed
-		message = fmt.Sprintf("cron hpa failed to execute,because of %s", err.Error())
+		message = fmt.Sprintf("cron hpa failed to execute,because of %v", err)
 		eventType = v1.EventTypeWarning
 	} else {
 		state = autoscalingv1beta1.Succeed
@@ -138,7 +138,7 @@ func (cm *CronManager) JobResultHandler(js *cron.JobResult) {
 
 	err = cm.client.Update(context.Background(), instance)
 	if err != nil {
-		log.Errorf("Failed to update cronHPA job:%s namespace:%s cronHPA:%s,because of %s", job.Name(), cronHpa.Namespace, cronHpa.Name, err.Error())
+		log.Errorf("Failed to update cronHPA job:%s namespace:%s cronHPA:%s,because of %v", job.Name(), cronHpa.Namespace, cronHpa.Name, err)
 	}
 	cm.eventRecorder.Event(instance, eventType, string(state), message)
 }

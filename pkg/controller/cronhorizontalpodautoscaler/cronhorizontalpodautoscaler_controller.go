@@ -106,7 +106,7 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 		return reconcile.Result{}, err
 	}
 
-	log.Infof("%v is handled by cron-hpa controller", instance)
+	log.Infof("%v is handled by cron-hpa controller", instance.Name)
 	conditions := instance.Status.Conditions
 
 	leftConditions := make([]v1beta1.Condition, 0)
@@ -133,7 +133,7 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 						if cJob.JobId != "" {
 							err := r.CronManager.delete(cJob.JobId)
 							if err != nil {
-								log.Errorf("Failed to delete expired job %s,because of %s", cJob.Name, err.Error())
+								log.Errorf("Failed to delete expired job %s,because of %v", cJob.Name, err)
 							}
 						}
 						continue
@@ -146,7 +146,7 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 				if cJob.JobId != "" {
 					err := r.CronManager.delete(cJob.JobId)
 					if err != nil {
-						log.Errorf("Failed to delete expired job %s,because of %s", cJob.Name, err.Error())
+						log.Errorf("Failed to delete expired job %s,because of %v", cJob.Name, err)
 					}
 				}
 			}
@@ -176,8 +176,8 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 
 		if err != nil {
 			jobCondition.State = v1beta1.Failed
-			jobCondition.Message = fmt.Sprintf("Failed to create cron hpa job %s,because of %s", job.Name, err.Error())
-			log.Errorf("Failed to create cron hpa job %s,because of %s", job.Name, err.Error())
+			jobCondition.Message = fmt.Sprintf("Failed to create cron hpa job %s,because of %v", job.Name, err)
+			log.Errorf("Failed to create cron hpa job %s,because of %v", job.Name, err)
 		} else {
 			name := job.Name
 			if c, ok := leftConditionsMap[name]; ok {
@@ -201,7 +201,7 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 					continue
 				} else {
 					jobCondition.State = v1beta1.Failed
-					jobCondition.Message = fmt.Sprintf("Failed to update cron hpa job %s,because of %s", job.Name, err.Error())
+					jobCondition.Message = fmt.Sprintf("Failed to update cron hpa job %s,because of %v", job.Name, err)
 				}
 			} else {
 				jobCondition.State = v1beta1.Submitted
@@ -214,7 +214,7 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 	if !noNeedUpdateStatus || len(leftConditions) != len(conditions) {
 		err := r.Update(context.Background(), instance)
 		if err != nil {
-			log.Errorf("Failed to update cron hpa %s status,because of %s", instance.Name, err.Error())
+			log.Errorf("Failed to update cron hpa %s status,because of %v", instance.Name, err)
 		}
 	}
 

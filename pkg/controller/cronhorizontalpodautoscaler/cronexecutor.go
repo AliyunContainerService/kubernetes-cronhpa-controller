@@ -25,7 +25,7 @@ type CronHPAExecutor struct {
 func (ce *CronHPAExecutor) AddJob(job CronJob) error {
 	err := ce.Engine.AddJob(job.SchedulePlan(), job)
 	if err != nil {
-		log.Errorf("Failed to add job to engine,because of %s", err.Error())
+		log.Errorf("Failed to add job to engine,because of %v", err)
 	}
 	return err
 }
@@ -34,7 +34,7 @@ func (ce *CronHPAExecutor) Update(job CronJob) error {
 	ce.Engine.RemoveJob(job.ID())
 	err := ce.Engine.AddJob(job.SchedulePlan(), job)
 	if err != nil {
-		log.Errorf("Failed to update job to engine,because of %s", err.Error())
+		log.Errorf("Failed to update job to engine,because of %v", err)
 	}
 	return err
 }

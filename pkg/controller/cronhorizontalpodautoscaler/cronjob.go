@@ -102,18 +102,18 @@ func (ch *CronJobHPA) Run() (msg string, err error) {
 
 		// timeout and exit
 		if startTime.Add(maxRetryTimeout).Before(now) {
-			return "", fmt.Errorf("failed to scale (namespace: %s;kind: %s;name: %s) to %d after retrying %d times and exit,because of %s", ch.TargetRef.RefNamespace, ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.DesiredSize, times, err.Error())
+			return "", fmt.Errorf("failed to scale (namespace: %s;kind: %s;name: %s) to %d after retrying %d times and exit,because of %v", ch.TargetRef.RefNamespace, ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.DesiredSize, times, err)
 		}
 
 		// hpa compatible
 		if ch.TargetRef.RefKind == "HorizontalPodAutoscaler" {
 			msg, err = ch.ScaleHPA()
-			if err != nil {
+			if err == nil {
 				break
 			}
 		} else {
 			msg, err = ch.ScalePlainRef()
-			if err != nil {
+			if err == nil {
 				break
 			}
 		}
@@ -150,13 +150,13 @@ func (ch *CronJobHPA) ScaleHPA() (msg string, err error) {
 
 	mappings, err := ch.mapper.RESTMappings(targetGK)
 	if err != nil {
-		return "", fmt.Errorf("Failed to create mapping,because of %s", err.Error())
+		return "", fmt.Errorf("Failed to create mapping,because of %v", err)
 	}
 
 	found := false
 	for _, mapping := range mappings {
 		targetGR = mapping.Resource.GroupResource()
-		scale, err = ch.scaler.Scales(ch.TargetRef.RefNamespace).Get(targetGR, ch.TargetRef.RefName)
+		scale, err = ch.scaler.Scales(ch.TargetRef.RefNamespace).Get(targetGR, targetRef.Name)
 		if err == nil {
 			found = true
 			break
@@ -180,14 +180,15 @@ func (ch *CronJobHPA) ScaleHPA() (msg string, err error) {
 		updateHPA = true
 	}
 
-	if hpa.Status.CurrentReplicas < ch.DesiredSize {
+	//
+	if hpa.Status.CurrentReplicas == *hpa.Spec.MinReplicas && ch.DesiredSize < hpa.Status.CurrentReplicas {
 		*hpa.Spec.MinReplicas = ch.DesiredSize
 		updateHPA = true
 	}
 
-	if hpa.Status.CurrentReplicas > ch.DesiredSize {
-		// skip change replicas and exit
-		return "", nil
+	if hpa.Status.CurrentReplicas < ch.DesiredSize {
+		*hpa.Spec.MinReplicas = ch.DesiredSize
+		updateHPA = true
 	}
 
 	if updateHPA {
@@ -197,13 +198,19 @@ func (ch *CronJobHPA) ScaleHPA() (msg string, err error) {
 		}
 	}
 
-	msg = fmt.Sprintf("current replicas:%d, desired replicas:%d", scale.Spec.Replicas, ch.DesiredSize)
+	if hpa.Status.CurrentReplicas >= ch.DesiredSize {
+		// skip change replicas and exit
+		return fmt.Sprintf("Skip scale replicas because HPA %s current replicas:%d >= desired replicas:%d.", hpa.Name, scale.Spec.Replicas, ch.DesiredSize), nil
+	}
+
+	msg = fmt.Sprintf("current replicas:%d, desired replicas:%d.", scale.Spec.Replicas, ch.DesiredSize)
+
 	scale.Spec.Replicas = int32(ch.DesiredSize)
 	_, err = ch.scaler.Scales(ch.TargetRef.RefNamespace).Update(targetGR, scale)
 	if err != nil {
-		return "", fmt.Errorf("Failed to scale (namespace: %s;kind: %s;name: %s) to %d,because of %s", ch.TargetRef.RefNamespace, ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.DesiredSize, err.Error())
+		return "", fmt.Errorf("Failed to scale (namespace: %s;kind: %s;name: %s) to %d,because of %v", ch.TargetRef.RefNamespace, ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.DesiredSize, err)
 	}
-	return "", nil
+	return msg, nil
 }
 
 func (ch *CronJobHPA) ScalePlainRef() (msg string, err error) {
@@ -216,7 +223,7 @@ func (ch *CronJobHPA) ScalePlainRef() (msg string, err error) {
 	}
 	mappings, err := ch.mapper.RESTMappings(targetGK)
 	if err != nil {
-		return "", fmt.Errorf("Failed to create create mapping,because of %s", err.Error())
+		return "", fmt.Errorf("Failed to create create mapping,because of %v", err)
 	}
 
 	found := false
@@ -233,13 +240,15 @@ func (ch *CronJobHPA) ScalePlainRef() (msg string, err error) {
 		return "", fmt.Errorf("Failed to found source target %s", ch.TargetRef.RefName)
 	}
 
-	msg = fmt.Sprintf("current replicas:%d, desired replicas:%d", scale.Spec.Replicas, ch.DesiredSize)
+	msg = fmt.Sprintf("current replicas:%d, desired replicas:%d.", scale.Spec.Replicas, ch.DesiredSize)
+
+	scale.ObjectMeta.ResourceVersion = ""
 	scale.Spec.Replicas = int32(ch.DesiredSize)
 	_, err = ch.scaler.Scales(ch.TargetRef.RefNamespace).Update(targetGR, scale)
 	if err != nil {
-		return "", fmt.Errorf("Failed to scale (namespace: %s;kind: %s;name: %s) to %d,because of %s", ch.TargetRef.RefNamespace, ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.DesiredSize, err.Error())
+		return "", fmt.Errorf("Failed to scale (namespace: %s;kind: %s;name: %s) to %d,because of %v", ch.TargetRef.RefNamespace, ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.DesiredSize, err)
 	}
-	return "", nil
+	return msg, nil
 }
 
 func checkRefValid(ref *TargetRef) error {
