@@ -1,6 +1,7 @@
 package cronhorizontalpodautoscaler
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis/autoscaling/v1beta1"
@@ -10,7 +11,9 @@ import (
 	autoscalingapi "k8s.io/api/autoscaling/v1"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	scaleclient "k8s.io/client-go/scale"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strings"
 	"time"
 )
@@ -55,6 +58,7 @@ type CronJobHPA struct {
 	scaler       scaleclient.ScalesGetter
 	mapper       apimeta.RESTMapper
 	excludeDates []string
+	client       client.Client
 }
 
 func (ch *CronJobHPA) SetID(id string) {
@@ -86,21 +90,10 @@ func (ch *CronJobHPA) Ref() *TargetRef {
 }
 
 func (ch *CronJobHPA) Run() (msg string, err error) {
-	targetGK := schema.GroupKind{
-		Group: ch.TargetRef.RefGroup,
-		Kind:  ch.TargetRef.RefKind,
-	}
-	mappings, err := ch.mapper.RESTMappings(targetGK)
-	if err != nil {
-		return "", fmt.Errorf("Failed to create create mapping,because of %s", err.Error())
-	}
 
 	if skip, msg := IsTodayOff(ch.excludeDates); skip {
 		return msg, nil
 	}
-
-	var scale *autoscalingapi.Scale
-	var targetGR schema.GroupResource
 
 	startTime := time.Now()
 	times := 0
@@ -109,36 +102,152 @@ func (ch *CronJobHPA) Run() (msg string, err error) {
 
 		// timeout and exit
 		if startTime.Add(maxRetryTimeout).Before(now) {
-			return "", fmt.Errorf("Failed to scale (namespace: %s;kind: %s;name: %s) to %d after retrying %d times and exit,because of %s", ch.TargetRef.RefNamespace, ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.DesiredSize, times, err.Error())
+			return "", fmt.Errorf("failed to scale (namespace: %s;kind: %s;name: %s) to %d after retrying %d times and exit,because of %v", ch.TargetRef.RefNamespace, ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.DesiredSize, times, err)
 		}
 
-		found := false
-		for _, mapping := range mappings {
-			targetGR = mapping.Resource.GroupResource()
-			scale, err = ch.scaler.Scales(ch.TargetRef.RefNamespace).Get(targetGR, ch.TargetRef.RefName)
+		// hpa compatible
+		if ch.TargetRef.RefKind == "HorizontalPodAutoscaler" {
+			msg, err = ch.ScaleHPA()
 			if err == nil {
-				found = true
+				break
+			}
+		} else {
+			msg, err = ch.ScalePlainRef()
+			if err == nil {
 				break
 			}
 		}
-
-		if !found {
-			return "", fmt.Errorf("Failed to found source target %s", ch.TargetRef.RefName)
-		}
-
-		msg = fmt.Sprintf("current replicas:%d, desired replicas:%d", scale.Spec.Replicas, ch.DesiredSize)
-		scale.Spec.Replicas = int32(ch.DesiredSize)
-		_, err = ch.scaler.Scales(ch.TargetRef.RefNamespace).Update(targetGR, scale)
-		if err != nil {
-			log.Warningf("Failed to scale (namespace: %s;kind: %s;name: %s) to %d,because of %s", ch.TargetRef.RefNamespace, ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.DesiredSize, err.Error())
-		} else {
-			break
-		}
-
 		time.Sleep(updateRetryInterval)
 		times = times + 1
 	}
 
+	return msg, err
+}
+
+func (ch *CronJobHPA) ScaleHPA() (msg string, err error) {
+	var scale *autoscalingapi.Scale
+	var targetGR schema.GroupResource
+
+	ctx := context.Background()
+	hpa := &autoscalingapi.HorizontalPodAutoscaler{}
+	err = ch.client.Get(ctx, types.NamespacedName{Namespace: ch.HPARef.Namespace, Name: ch.TargetRef.RefName}, hpa)
+
+	if err != nil {
+		return "", fmt.Errorf("Failed to get HorizontalPodAutoscaler Ref,because of %v", err)
+	}
+
+	targetRef := hpa.Spec.ScaleTargetRef
+
+	targetGV, err := schema.ParseGroupVersion(targetRef.APIVersion)
+	if err != nil {
+		return "", fmt.Errorf("Failed to get TargetGroup of HPA %s,because of %v", hpa.Name, err)
+	}
+
+	targetGK := schema.GroupKind{
+		Kind:  targetRef.Kind,
+		Group: targetGV.Group,
+	}
+
+	mappings, err := ch.mapper.RESTMappings(targetGK)
+	if err != nil {
+		return "", fmt.Errorf("Failed to create mapping,because of %v", err)
+	}
+
+	found := false
+	for _, mapping := range mappings {
+		targetGR = mapping.Resource.GroupResource()
+		scale, err = ch.scaler.Scales(ch.TargetRef.RefNamespace).Get(targetGR, targetRef.Name)
+		if err == nil {
+			found = true
+			break
+
+		}
+	}
+
+	if found == false {
+		return "", fmt.Errorf("Failed to found source target %s", ch.TargetRef.RefName)
+	}
+
+	updateHPA := false
+
+	if ch.DesiredSize > hpa.Spec.MaxReplicas {
+		hpa.Spec.MaxReplicas = ch.DesiredSize
+		updateHPA = true
+	}
+
+	if ch.DesiredSize < *hpa.Spec.MinReplicas {
+		*hpa.Spec.MinReplicas = ch.DesiredSize
+		updateHPA = true
+	}
+
+	//
+	if hpa.Status.CurrentReplicas == *hpa.Spec.MinReplicas && ch.DesiredSize < hpa.Status.CurrentReplicas {
+		*hpa.Spec.MinReplicas = ch.DesiredSize
+		updateHPA = true
+	}
+
+	if hpa.Status.CurrentReplicas < ch.DesiredSize {
+		*hpa.Spec.MinReplicas = ch.DesiredSize
+		updateHPA = true
+	}
+
+	if updateHPA {
+		err = ch.client.Update(ctx, hpa)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	if hpa.Status.CurrentReplicas >= ch.DesiredSize {
+		// skip change replicas and exit
+		return fmt.Sprintf("Skip scale replicas because HPA %s current replicas:%d >= desired replicas:%d.", hpa.Name, scale.Spec.Replicas, ch.DesiredSize), nil
+	}
+
+	msg = fmt.Sprintf("current replicas:%d, desired replicas:%d.", scale.Spec.Replicas, ch.DesiredSize)
+
+	scale.Spec.Replicas = int32(ch.DesiredSize)
+	_, err = ch.scaler.Scales(ch.TargetRef.RefNamespace).Update(targetGR, scale)
+	if err != nil {
+		return "", fmt.Errorf("Failed to scale (namespace: %s;kind: %s;name: %s) to %d,because of %v", ch.TargetRef.RefNamespace, ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.DesiredSize, err)
+	}
+	return msg, nil
+}
+
+func (ch *CronJobHPA) ScalePlainRef() (msg string, err error) {
+	var scale *autoscalingapi.Scale
+	var targetGR schema.GroupResource
+
+	targetGK := schema.GroupKind{
+		Group: ch.TargetRef.RefGroup,
+		Kind:  ch.TargetRef.RefKind,
+	}
+	mappings, err := ch.mapper.RESTMappings(targetGK)
+	if err != nil {
+		return "", fmt.Errorf("Failed to create create mapping,because of %v", err)
+	}
+
+	found := false
+	for _, mapping := range mappings {
+		targetGR = mapping.Resource.GroupResource()
+		scale, err = ch.scaler.Scales(ch.TargetRef.RefNamespace).Get(targetGR, ch.TargetRef.RefName)
+		if err == nil {
+			found = true
+			break
+		}
+	}
+
+	if found == false {
+		return "", fmt.Errorf("Failed to found source target %s", ch.TargetRef.RefName)
+	}
+
+	msg = fmt.Sprintf("current replicas:%d, desired replicas:%d.", scale.Spec.Replicas, ch.DesiredSize)
+
+	scale.ObjectMeta.ResourceVersion = ""
+	scale.Spec.Replicas = int32(ch.DesiredSize)
+	_, err = ch.scaler.Scales(ch.TargetRef.RefNamespace).Update(targetGR, scale)
+	if err != nil {
+		return "", fmt.Errorf("Failed to scale (namespace: %s;kind: %s;name: %s) to %d,because of %v", ch.TargetRef.RefNamespace, ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.DesiredSize, err)
+	}
 	return msg, nil
 }
 
@@ -153,7 +262,7 @@ func checkPlanValid(plan string) error {
 	return nil
 }
 
-func CronHPAJobFactory(instance *v1beta1.CronHorizontalPodAutoscaler, job v1beta1.Job, scaler scaleclient.ScalesGetter, mapper apimeta.RESTMapper) (CronJob, error) {
+func CronHPAJobFactory(instance *v1beta1.CronHorizontalPodAutoscaler, job v1beta1.Job, scaler scaleclient.ScalesGetter, mapper apimeta.RESTMapper, client client.Client) (CronJob, error) {
 	arr := strings.Split(instance.Spec.ScaleTargetRef.ApiVersion, "/")
 	group := arr[0]
 	version := arr[1]
@@ -182,6 +291,7 @@ func CronHPAJobFactory(instance *v1beta1.CronHorizontalPodAutoscaler, job v1beta
 		scaler:       scaler,
 		mapper:       mapper,
 		excludeDates: instance.Spec.ExcludeDates,
+		client:       client,
 	}, nil
 }
 
