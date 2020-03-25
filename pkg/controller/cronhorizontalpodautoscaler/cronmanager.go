@@ -177,7 +177,14 @@ func (cm *CronManager) Run(stopChan chan struct{}) {
 
 // GC will collect all jobs which ref is not exists and recycle.
 func (cm *CronManager) GC() {
-	for _, job := range cm.jobQueue {
+	m := make(map[string]CronJob)
+	cm.Lock()
+	for k, v := range cm.jobQueue {
+		m[k] = v
+	}
+	cm.Unlock()
+
+	for _, job := range m {
 		hpa := job.(*CronJobHPA).HPARef
 		instance := &autoscalingv1beta1.CronHorizontalPodAutoscaler{}
 		if err := cm.client.Get(context.Background(), types.NamespacedName{
@@ -190,7 +197,7 @@ func (cm *CronManager) GC() {
 					log.Errorf("Failed to gc job %s %s %s", hpa.Namespace, hpa.Name, job.Name())
 					continue
 				}
-				delete(cm.jobQueue, job.ID())
+				cm.delete(job.ID())
 			}
 		}
 	}
