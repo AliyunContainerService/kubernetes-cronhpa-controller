@@ -111,7 +111,7 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 
 	leftConditions := make([]v1beta1.Condition, 0)
 	// check scaleTargetRef and excludeDates
-	if checkGlobalParamsChanges(instance.Status, instance.Spec) {
+	if !validateParams(instance) || checkGlobalParamsChanges(instance.Status, instance.Spec) {
 		for _, cJob := range conditions {
 			err := r.CronManager.delete(cJob.JobId)
 			if err != nil {
@@ -238,6 +238,18 @@ func updateConditions(conditions []v1beta1.Condition, condition v1beta1.Conditio
 		r = append(r, condition)
 	}
 	return r
+}
+
+func validateParams(instance *v1beta1.CronHorizontalPodAutoscaler) (bool) {
+	pass := true
+	var errs []error
+	// verify spec params - ExcludeDates
+	validRes,errs:= autoscalingv1beta1.Validate(instance.Spec.ExcludeDates)
+	if !validRes || errs != nil {
+		log.Errorf("Failed to validate spec.ExcludeDates: %s Errors are: %s ", instance.Spec.ExcludeDates, errs)
+		pass = false
+	}
+	return pass
 }
 
 // if global params changed then all jobs need to be recreated.
