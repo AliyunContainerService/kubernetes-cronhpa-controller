@@ -1,0 +1,13 @@
+cleanup:
+  cleanupCustomResource: false
+
+crds:
+  needcreate: true
+
+controller:
+  image: registry.aliyuncs.com/acs/kubernetes-cronhpa-controller:v1.3.0-ce5e66ea-aliyun
+  timezone: "Asia/Shanghai"
+
+global:
+  rbac:
+    create: true
