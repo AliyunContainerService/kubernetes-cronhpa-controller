@@ -77,3 +77,25 @@ rules:
   - update
   - patch
   - delete
+- apiGroups:
+  - apps.kruise.io
+  resources:
+  - statefulsets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - autoscaling.alibabacloud.com
+  resources:
+  - elasticworkloads
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+  - patch
