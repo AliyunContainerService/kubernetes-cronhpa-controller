@@ -233,6 +233,8 @@ func (ch *CronJobHPA) ScalePlainRef() (msg string, err error) {
 		if err == nil {
 			found = true
 			break
+		} else {
+			log.Warningf("Skip source target %s,because of %v", ch.TargetRef.RefName, err)
 		}
 	}
 
@@ -242,7 +244,6 @@ func (ch *CronJobHPA) ScalePlainRef() (msg string, err error) {
 
 	msg = fmt.Sprintf("current replicas:%d, desired replicas:%d.", scale.Spec.Replicas, ch.DesiredSize)
 
-	scale.ObjectMeta.ResourceVersion = ""
 	scale.Spec.Replicas = int32(ch.DesiredSize)
 	_, err = ch.scaler.Scales(ch.TargetRef.RefNamespace).Update(targetGR, scale)
 	if err != nil {
