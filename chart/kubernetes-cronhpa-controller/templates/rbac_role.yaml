@@ -3,12 +3,13 @@ kind: ClusterRole
 metadata:
   name: kubernetes-cronhpa-controller-role
 rules:
-  - apiGroups: [""]
-    resources: ["*"]
+  - apiGroups:
+      - '*'
+    resources:
+      - '*/scale'
     verbs:
       - get
       - list
-      - watch
       - update
   - apiGroups:
       - extensions
@@ -35,16 +36,10 @@ rules:
       - create
       - update
       - patch
-  - apiGroups: [""]
-    resources: ["configmaps"]
-    verbs:
-      - get
-      - create
-      - update
   - apiGroups:
-      - autoscaling.alibabacloud.com
+      - autoscaling
     resources:
-      - cronhorizontalpodautoscalers
+      - horizontalpodautoscalers
     verbs:
       - get
       - list
@@ -52,10 +47,11 @@ rules:
       - create
       - update
       - patch
+      - delete
   - apiGroups:
-      - autoscaling
+      - autoscaling.alibabacloud.com
     resources:
-      - horizontalpodautoscalers
+      - cronhorizontalpodautoscalers
     verbs:
       - get
       - list
@@ -77,25 +73,4 @@ rules:
       - update
       - patch
       - delete
-  - apiGroups:
-      - apps.kruise.io
-    resources:
-      - statefulsets/scale
-      - uniteddeployments/scale
-      - clonesets/scale
-    verbs:
-      - get
-      - list
-      - watch
-      - update
-      - patch
-  - apiGroups:
-      - autoscaling.alibabacloud.com
-    resources:
-      - elasticworkloads/scale
-    verbs:
-      - get
-      - list
-      - watch
-      - update
       - patch
