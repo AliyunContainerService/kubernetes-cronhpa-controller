@@ -37,5 +37,8 @@ spec:
      schedule: "30 */1 * * * *"
      targetSize: 1
    - name: "scale-up"
-     schedule: "0 */1 * * * *"
+     schedule: "01 */1 * * * *"
      targetSize: 3
+   - name: "scale-up-2"
+     schedule: "10 */1 * * * *"
+     targetSize: 5

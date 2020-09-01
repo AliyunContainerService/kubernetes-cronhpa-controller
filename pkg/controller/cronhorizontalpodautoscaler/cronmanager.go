@@ -24,6 +24,11 @@ import (
 	"time"
 )
 
+const (
+	MaxRetryTimes    = 3
+	MaxRetryInterval = 1 * time.Second
+)
+
 type NoNeedUpdate struct{}
 
 func (n NoNeedUpdate) Error() string {
@@ -136,11 +141,27 @@ func (cm *CronManager) JobResultHandler(js *cron.JobResult) {
 		instance.Status.Conditions = append(instance.Status.Conditions, condition)
 	}
 
-	err = cm.client.Update(context.Background(), instance)
+	err = cm.updateCronHPAStatusWithRetry(instance, job.name)
 	if err != nil {
-		log.Errorf("Failed to update cronHPA job:%s namespace:%s cronHPA:%s,because of %v", job.Name(), cronHpa.Namespace, cronHpa.Name, err)
+		cm.eventRecorder.Event(instance, v1.EventTypeWarning, "Failed", fmt.Sprintf("Failed to update cronhpa status: %v", err))
+	} else {
+		cm.eventRecorder.Event(instance, eventType, string(state), message)
 	}
-	cm.eventRecorder.Event(instance, eventType, string(state), message)
+}
+
+func (cm *CronManager) updateCronHPAStatusWithRetry(instance *autoscalingv1beta1.CronHorizontalPodAutoscaler, jobName string) error {
+	var err error
+	for i := 1; i <= MaxRetryTimes; i++ {
+		err = cm.client.Update(context.Background(), instance)
+		if err != nil {
+			continue
+		}
+		break
+	}
+	if err != nil {
+		log.Errorf("Failed to update cronHPA job:%s namespace:%s cronHPA:%s after %d times,because of %v", jobName, instance.Namespace, instance.Name, MaxRetryTimes, err)
+	}
+	return err
 }
 
 func (cm *CronManager) Run(stopChan chan struct{}) {
