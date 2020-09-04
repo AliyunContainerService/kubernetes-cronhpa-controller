@@ -12,8 +12,10 @@ language: go
 # You don't need to test on very old versions of the Go compiler. It's the user's
 # responsibility to keep their compiler up to date.
 go:
-  - 1.12.x
   - 1.11.x
+  - 1.12.x
+  - 1.13.x
+  - 1.14.x
 
 # Only clone the most recent commit.
 git:
@@ -25,7 +27,9 @@ git:
 
 # Don't email me the results of the test runs.
 notifications:
-  email: false
+  email:
+    - zhongwei.lzw@alibaba-inc.com
+
 
 # Anything in before_script that returns a nonzero exit code will flunk the
 # build and immediately stop. It's sorta like having set -e enabled in bash.
@@ -38,4 +42,4 @@ before_script:
 # .golangci.yml file at the top level of your repo.
 script:
 #  - golangci-lint run       # run a bunch of code checkers/linters in parallel
-  - go test -v -race ./...  # Run all the tests with the race detector enabled
+  - go test -v -race github.com/AliyunContainerService/kubernetes-cronhpa-controller/cmd/... github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/...  # Run all the tests with the race detector enabled
