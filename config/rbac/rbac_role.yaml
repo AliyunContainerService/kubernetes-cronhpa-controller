@@ -77,3 +77,25 @@ rules:
   - update
   - patch
   - delete
+- apiGroups:
+  - apps.kruise.io
+  resources:
+  - statefulsets/scale
+  - uniteddeployments/scale
+  - clonesets/scale
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+  - patch
+- apiGroups:
+  - autoscaling.alibabacloud.com
+  resources:
+  - elasticworkloads/scale
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+  - patch
