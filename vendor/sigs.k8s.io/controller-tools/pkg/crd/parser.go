@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"go/ast"
 
-	apiext "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	apiext "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"sigs.k8s.io/controller-tools/pkg/loader"
@@ -58,6 +58,10 @@ type Parser struct {
 	GroupVersions map[*loader.Package]schema.GroupVersion
 	// CustomResourceDefinitions contains the known CustomResourceDefinitions for types in this parser.
 	CustomResourceDefinitions map[schema.GroupKind]apiext.CustomResourceDefinition
+	// FlattenedSchemata contains fully flattened schemata for use in building
+	// CustomResourceDefinition validation.  Each schema has been flattened by the flattener,
+	// and then embedded fields have been flattened with FlattenEmbedded.
+	FlattenedSchemata map[TypeIdent]apiext.JSONSchemaProps
 
 	// PackageOverrides indicates that the loading of any package with
 	// the given path should be handled by the given overrider.
@@ -69,6 +73,20 @@ type Parser struct {
 	packages map[*loader.Package]struct{}
 
 	flattener *Flattener
+
+	// AllowDangerousTypes controls the handling of non-recommended types such as float. If
+	// false (the default), these types are not supported.
+	// There is a continuum here:
+	//    1. Types that are always supported.
+	//    2. Types that are allowed by default, but not recommended (warning emitted when they are encountered as per PR #443).
+	//       Possibly they are allowed by default for historical reasons and may even be "on their way out" at some point in the future.
+	//    3. Types that are not allowed by default, not recommended, but there are some legitimate reasons to need them in certain corner cases.
+	//       Possibly these types should also emit a warning as per PR #443 even when they are "switched on" (an integration point between
+	//       this feature and #443 if desired). This is the category that this flag deals with.
+	//    4. Types that are not allowed and will not be allowed, possibly because it just "doesn't make sense" or possibly
+	//       because the implementation is too difficult/clunky to promote them to category 3.
+	// TODO: Should we have a more formal mechanism for putting "type patterns" in each of the above categories?
+	AllowDangerousTypes bool
 }
 
 func (p *Parser) init() {
@@ -95,6 +113,9 @@ func (p *Parser) init() {
 	if p.CustomResourceDefinitions == nil {
 		p.CustomResourceDefinitions = make(map[schema.GroupKind]apiext.CustomResourceDefinition)
 	}
+	if p.FlattenedSchemata == nil {
+		p.FlattenedSchemata = make(map[TypeIdent]apiext.JSONSchemaProps)
+	}
 }
 
 // indexTypes loads all types in the package into Types.
@@ -103,15 +124,20 @@ func (p *Parser) indexTypes(pkg *loader.Package) {
 	pkgMarkers, err := markers.PackageMarkers(p.Collector, pkg)
 	if err != nil {
 		pkg.AddError(err)
-	} else if nameVal := pkgMarkers.Get("groupName"); nameVal != nil {
-		versionVal := pkg.Name // a reasonable guess
-		if versionMarker := pkgMarkers.Get("versionName"); versionMarker != nil {
-			versionVal = versionMarker.(string)
+	} else {
+		if skipPkg := pkgMarkers.Get("kubebuilder:skip"); skipPkg != nil {
+			return
 		}
+		if nameVal := pkgMarkers.Get("groupName"); nameVal != nil {
+			versionVal := pkg.Name // a reasonable guess
+			if versionMarker := pkgMarkers.Get("versionName"); versionMarker != nil {
+				versionVal = versionMarker.(string)
+			}
 
-		p.GroupVersions[pkg] = schema.GroupVersion{
-			Version: versionVal,
-			Group:   nameVal.(string),
+			p.GroupVersions[pkg] = schema.GroupVersion{
+				Version: versionVal,
+				Group:   nameVal.(string),
+			}
 		}
 	}
 
@@ -150,7 +176,7 @@ func (p *Parser) NeedSchemaFor(typ TypeIdent) {
 	// avoid tripping recursive schemata, like ManagedFields, by adding an empty WIP schema
 	p.Schemata[typ] = apiext.JSONSchemaProps{}
 
-	schemaCtx := newSchemaContext(typ.Package, p)
+	schemaCtx := newSchemaContext(typ.Package, p, p.AllowDangerousTypes)
 	ctxForInfo := schemaCtx.ForInfo(info)
 
 	pkgMarkers, err := markers.PackageMarkers(p.Collector, typ.Package)
@@ -162,8 +188,20 @@ func (p *Parser) NeedSchemaFor(typ TypeIdent) {
 	schema := infoToSchema(ctxForInfo)
 
 	p.Schemata[typ] = *schema
+}
 
-	return
+func (p *Parser) NeedFlattenedSchemaFor(typ TypeIdent) {
+	p.init()
+
+	if _, knownSchema := p.FlattenedSchemata[typ]; knownSchema {
+		return
+	}
+
+	p.NeedSchemaFor(typ)
+	partialFlattened := p.flattener.FlattenType(typ)
+	fullyFlattened := FlattenEmbedded(partialFlattened, typ.Package)
+
+	p.FlattenedSchemata[typ] = *fullyFlattened
 }
 
 // NeedCRDFor lives off in spec.go

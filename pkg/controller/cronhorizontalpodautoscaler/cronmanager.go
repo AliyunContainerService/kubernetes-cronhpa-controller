@@ -4,24 +4,28 @@ import (
 	"context"
 	"fmt"
 	autoscalingv1beta1 "github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis/autoscaling/v1beta1"
-	log "github.com/Sirupsen/logrus"
 	"github.com/ringtail/go-cron"
+	log "github.com/sirupsen/logrus"
 	"k8s.io/api/core/v1"
+	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	cacheddiscovery "k8s.io/client-go/discovery/cached"
 	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/informers"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/scale"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/kubernetes/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sync"
 	"time"
+)
+
+const (
+	MaxRetryTimes    = 3
+	MaxRetryInterval = 1 * time.Second
 )
 
 type NoNeedUpdate struct{}
@@ -136,23 +140,34 @@ func (cm *CronManager) JobResultHandler(js *cron.JobResult) {
 		instance.Status.Conditions = append(instance.Status.Conditions, condition)
 	}
 
-	err = cm.client.Update(context.Background(), instance)
+	err = cm.updateCronHPAStatusWithRetry(instance, job.name)
 	if err != nil {
-		log.Errorf("Failed to update cronHPA job:%s namespace:%s cronHPA:%s,because of %v", job.Name(), cronHpa.Namespace, cronHpa.Name, err)
+		cm.eventRecorder.Event(instance, v1.EventTypeWarning, "Failed", fmt.Sprintf("Failed to update cronhpa status: %v", err))
+	} else {
+		cm.eventRecorder.Event(instance, eventType, string(state), message)
 	}
-	cm.eventRecorder.Event(instance, eventType, string(state), message)
+}
+
+func (cm *CronManager) updateCronHPAStatusWithRetry(instance *autoscalingv1beta1.CronHorizontalPodAutoscaler, jobName string) error {
+	var err error
+	for i := 1; i <= MaxRetryTimes; i++ {
+		err = cm.client.Update(context.Background(), instance)
+		if err != nil {
+			continue
+		}
+		break
+	}
+	if err != nil {
+		log.Errorf("Failed to update cronHPA job:%s namespace:%s cronHPA:%s after %d times,because of %v", jobName, instance.Namespace, instance.Name, MaxRetryTimes, err)
+	}
+	return err
 }
 
 func (cm *CronManager) Run(stopChan chan struct{}) {
-	rootClientBuilder := controller.SimpleControllerClientBuilder{
-		ClientConfig: cm.cfg,
-	}
 
-	versionedClient := rootClientBuilder.ClientOrDie("shared-informers")
-	sharedInformers := informers.NewSharedInformerFactory(versionedClient, time.Minute*5)
-
+	hpaClient := clientset.NewForConfigOrDie(cm.cfg)
+	discoveryClient := clientset.NewForConfigOrDie(cm.cfg)
 	// Use a discovery client capable of being refreshed.
-	discoveryClient := rootClientBuilder.ClientOrDie("controller-discovery")
 	cachedClient := cacheddiscovery.NewMemCacheClient(discoveryClient.Discovery())
 	restMapper := restmapper.NewDeferredDiscoveryRESTMapper(cachedClient)
 
@@ -160,15 +175,15 @@ func (cm *CronManager) Run(stopChan chan struct{}) {
 		restMapper.Reset()
 	}, 30*time.Second, stopChan)
 
-	scaleKindResolver := scale.NewDiscoveryScaleKindResolver(rootClientBuilder.ClientOrDie("horizontal-pod-autoscaler").Discovery())
-	scaler, err := scale.NewForConfig(rootClientBuilder.ConfigOrDie("horizontal-pod-autoscaler"), restMapper, dynamic.LegacyAPIPathResolverFunc, scaleKindResolver)
+	scaleKindResolver := scale.NewDiscoveryScaleKindResolver(hpaClient.Discovery())
+	scaleClient, err := scale.NewForConfig(cm.cfg, restMapper, dynamic.LegacyAPIPathResolverFunc, scaleKindResolver)
+
 	if err != nil {
 		log.Fatal(err)
 	}
-	cm.mapper = restMapper
-	cm.scaler = scaler
 
-	sharedInformers.Start(stopChan)
+	cm.mapper = restMapper
+	cm.scaler = scaleClient
 
 	cm.cronExecutor.Run()
 	<-stopChan

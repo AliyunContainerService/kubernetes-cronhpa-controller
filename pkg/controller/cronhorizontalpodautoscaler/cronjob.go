@@ -5,11 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis/autoscaling/v1beta1"
-	log "github.com/Sirupsen/logrus"
 	"github.com/ringtail/go-cron"
 	"github.com/satori/go.uuid"
+	log "github.com/sirupsen/logrus"
 	autoscalingapi "k8s.io/api/autoscaling/v1"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	scaleclient "k8s.io/client-go/scale"
@@ -156,7 +158,7 @@ func (ch *CronJobHPA) ScaleHPA() (msg string, err error) {
 	found := false
 	for _, mapping := range mappings {
 		targetGR = mapping.Resource.GroupResource()
-		scale, err = ch.scaler.Scales(ch.TargetRef.RefNamespace).Get(targetGR, targetRef.Name)
+		scale, err = ch.scaler.Scales(ch.TargetRef.RefNamespace).Get(context.Background(), targetGR, targetRef.Name, v1.GetOptions{})
 		if err == nil {
 			found = true
 			break
@@ -206,7 +208,7 @@ func (ch *CronJobHPA) ScaleHPA() (msg string, err error) {
 	msg = fmt.Sprintf("current replicas:%d, desired replicas:%d.", scale.Spec.Replicas, ch.DesiredSize)
 
 	scale.Spec.Replicas = int32(ch.DesiredSize)
-	_, err = ch.scaler.Scales(ch.TargetRef.RefNamespace).Update(targetGR, scale)
+	_, err = ch.scaler.Scales(ch.TargetRef.RefNamespace).Update(context.Background(), targetGR, scale, metav1.UpdateOptions{})
 	if err != nil {
 		return "", fmt.Errorf("Failed to scale (namespace: %s;kind: %s;name: %s) to %d,because of %v", ch.TargetRef.RefNamespace, ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.DesiredSize, err)
 	}
@@ -229,7 +231,7 @@ func (ch *CronJobHPA) ScalePlainRef() (msg string, err error) {
 	found := false
 	for _, mapping := range mappings {
 		targetGR = mapping.Resource.GroupResource()
-		scale, err = ch.scaler.Scales(ch.TargetRef.RefNamespace).Get(targetGR, ch.TargetRef.RefName)
+		scale, err = ch.scaler.Scales(ch.TargetRef.RefNamespace).Get(context.Background(), targetGR, ch.TargetRef.RefName, v1.GetOptions{})
 		if err == nil {
 			found = true
 			break
@@ -245,7 +247,7 @@ func (ch *CronJobHPA) ScalePlainRef() (msg string, err error) {
 	msg = fmt.Sprintf("current replicas:%d, desired replicas:%d.", scale.Spec.Replicas, ch.DesiredSize)
 
 	scale.Spec.Replicas = int32(ch.DesiredSize)
-	_, err = ch.scaler.Scales(ch.TargetRef.RefNamespace).Update(targetGR, scale)
+	_, err = ch.scaler.Scales(ch.TargetRef.RefNamespace).Update(context.Background(), targetGR, scale, metav1.UpdateOptions{})
 	if err != nil {
 		return "", fmt.Errorf("Failed to scale (namespace: %s;kind: %s;name: %s) to %d,because of %v", ch.TargetRef.RefNamespace, ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.DesiredSize, err)
 	}
