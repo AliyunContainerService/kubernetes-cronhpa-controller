@@ -1,8 +1,8 @@
 package cronhorizontalpodautoscaler
 
 import (
-	log "github.com/Sirupsen/logrus"
 	"github.com/ringtail/go-cron"
+	log "github.com/sirupsen/logrus"
 	"time"
 )
 
