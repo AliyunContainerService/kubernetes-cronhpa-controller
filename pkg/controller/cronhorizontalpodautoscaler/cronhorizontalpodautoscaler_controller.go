@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+	"strings"
 	"time"
 )
 
@@ -49,7 +50,7 @@ func Add(mgr manager.Manager) error {
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 	var stopChan chan struct{}
-	cm := NewCronManager(mgr.GetConfig(), mgr.GetClient(), mgr.GetEventRecorderFor("cron-horizontal-pod-autoscaler"))
+	cm := NewCronManager(mgr.GetConfig(), mgr.GetClient(), mgr.GetEventRecorderFor("CronHorizontalPodAutoscaler"))
 	r := &ReconcileCronHorizontalPodAutoscaler{Client: mgr.GetClient(), scheme: mgr.GetScheme(), CronManager: cm}
 	go func(cronManager *CronManager, stopChan chan struct{}) {
 		cm.Run(stopChan)
@@ -61,7 +62,7 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Create a new controller
-	c, err := controller.New("cron-horizontal-pod-autoscaler-controller", mgr, controller.Options{Reconciler: r})
+	c, err := controller.New("CronHorizontalPodAutoscaler", mgr, controller.Options{Reconciler: r})
 	if err != nil {
 		return err
 	}
@@ -185,7 +186,7 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 				j.SetID(jobId)
 
 				// run once and return when reaches the final state
-				if job.RunOnce && (c.State == v1beta1.Succeed || c.State == v1beta1.Failed) {
+				if runOnce(job) && (c.State == v1beta1.Succeed || c.State == v1beta1.Failed) {
 					err := r.CronManager.delete(jobId)
 					if err != nil {
 						log.Errorf("cron hpa %s(%s) has ran once but fail to exit,because of %v", name, jobId, err)
@@ -218,7 +219,7 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 		}
 	}
 
-	log.Infof("%v has been handled completely.", instance)
+	//log.Infof("%v has been handled completely.", instance)
 	return reconcile.Result{}, nil
 }
 
@@ -261,4 +262,11 @@ func checkGlobalParamsChanges(status v1beta1.CronHorizontalPodAutoscalerStatus, 
 	}
 	// excludeMap change
 	return len(excludeDatesMap) != 0
+}
+
+func runOnce(job v1beta1.Job) bool {
+	if strings.Contains(job.Schedule, "@date ") || job.RunOnce {
+		return true
+	}
+	return false
 }

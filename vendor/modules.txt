@@ -100,7 +100,7 @@ github.com/prometheus/common/model
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
-# github.com/ringtail/go-cron v1.0.1-0.20190829034403-064b52d195fc
+# github.com/ringtail/go-cron v1.0.1-0.20201027122514-cfb21c105f50
 ## explicit
 github.com/ringtail/go-cron
 # github.com/satori/go.uuid v1.2.0
