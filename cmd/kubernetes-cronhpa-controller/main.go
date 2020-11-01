@@ -20,6 +20,8 @@ import (
 	"flag"
 	"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis"
 	"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/controller"
+	"k8s.io/apimachinery/pkg/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"os"
 	//"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/webhook"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -31,7 +33,13 @@ import (
 
 var (
 	enableLeaderElection bool
+	scheme               = runtime.NewScheme()
 )
+
+func init() {
+	_ = clientgoscheme.AddToScheme(scheme)
+	_ = apis.AddToScheme(scheme)
+}
 
 func main() {
 	flag.Parse()
@@ -50,19 +58,11 @@ func main() {
 	// Create a new Cmd to provide shared dependencies and start components
 	log.Info("setting up manager")
 	mgr, err := manager.New(cfg, manager.Options{
+		Scheme:         scheme,
 		LeaderElection: enableLeaderElection,
 	})
 	if err != nil {
 		log.Error(err, "unable to set up overall controller manager")
-		os.Exit(1)
-	}
-
-	log.Info("Registering Components.")
-
-	// Setup Scheme for all resources
-	log.Info("setting up scheme")
-	if err := apis.AddToScheme(mgr.GetScheme()); err != nil {
-		log.Error(err, "unable add APIs to scheme")
 		os.Exit(1)
 	}
 
@@ -72,12 +72,6 @@ func main() {
 		log.Error(err, "unable to register controllers to the manager")
 		os.Exit(1)
 	}
-
-	//log.Info("setting up webhooks")
-	//if err := webhook.AddToManager(mgr); err != nil {
-	//	log.Error(err, "unable to register webhooks to the manager")
-	//	os.Exit(1)
-	//}
 
 	// Start the Cmd
 	log.Info("Starting the Cmd.")

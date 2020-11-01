@@ -9,7 +9,7 @@ all: test kubernetes-cronhpa-controller
 
 # Run tests
 test: generate fmt vet
-	go test github.com/AliyunContainerService/kubernetes-cronhpa-controller/cmd/... \
+	TRAVIS=true go test github.com/AliyunContainerService/kubernetes-cronhpa-controller/cmd/... \
 	    github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/...  \
 	        -coverprofile cover.out
 
