@@ -162,7 +162,6 @@ func (ch *CronJobHPA) ScaleHPA() (msg string, err error) {
 		if err == nil {
 			found = true
 			break
-
 		}
 	}
 
@@ -234,6 +233,7 @@ func (ch *CronJobHPA) ScalePlainRef() (msg string, err error) {
 		scale, err = ch.scaler.Scales(ch.TargetRef.RefNamespace).Get(context.Background(), targetGR, ch.TargetRef.RefName, v1.GetOptions{})
 		if err == nil {
 			found = true
+			log.Infof("%s %s in namespace %s has been scaled successfully. Job: %s Replicas: %d", ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.TargetRef.RefNamespace, ch.Name(), ch.DesiredSize)
 			break
 		} else {
 			log.Warningf("Skip source target %s,because of %v", ch.TargetRef.RefName, err)
