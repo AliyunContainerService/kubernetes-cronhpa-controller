@@ -12,6 +12,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
+	cacheddiscovery "k8s.io/client-go/discovery/cached"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
@@ -166,25 +168,6 @@ func (cm *CronManager) updateCronHPAStatusWithRetry(instance *autoscalingv1beta1
 }
 
 func (cm *CronManager) Run(stopChan chan struct{}) {
-	hpaClient := clientset.NewForConfigOrDie(cm.cfg)
-	discoveryClient := clientset.NewForConfigOrDie(cm.cfg)
-	// Use a discovery client capable of being refreshed.
-	resources, err := restmapper.GetAPIGroupResources(discoveryClient)
-	if err != nil {
-		log.Fatalf("Failed to get api resources,because of %v", err)
-	}
-	restMapper := restmapper.NewDiscoveryRESTMapper(resources)
-	// change the rest mapper to discovery resources
-	scaleKindResolver := scale.NewDiscoveryScaleKindResolver(hpaClient.Discovery())
-	scaleClient, err := scale.NewForConfig(cm.cfg, restMapper, dynamic.LegacyAPIPathResolverFunc, scaleKindResolver)
-
-	if err != nil {
-		log.Fatalf("Failed to create scaler client,because of %v", err)
-	}
-
-	cm.mapper = restMapper
-	cm.scaler = scaleClient
-
 	cm.cronExecutor.Run()
 	<-stopChan
 	cm.cronExecutor.Stop()
@@ -225,6 +208,27 @@ func NewCronManager(cfg *rest.Config, client client.Client, recorder record.Even
 		jobQueue:      make(map[string]CronJob),
 		eventRecorder: recorder,
 	}
+
+	hpaClient := clientset.NewForConfigOrDie(cm.cfg)
+	discoveryClient := clientset.NewForConfigOrDie(cm.cfg)
+	cachedClient := cacheddiscovery.NewMemCacheClient(discoveryClient.Discovery())
+	restMapper := restmapper.NewDeferredDiscoveryRESTMapper(cachedClient)
+
+	go wait.Until(func() {
+		restMapper.Reset()
+	}, 30*time.Second, wait.NeverStop)
+
+	// change the rest mapper to discovery resources
+	scaleKindResolver := scale.NewDiscoveryScaleKindResolver(hpaClient.Discovery())
+	scaleClient, err := scale.NewForConfig(cm.cfg, restMapper, dynamic.LegacyAPIPathResolverFunc, scaleKindResolver)
+
+	if err != nil {
+		log.Fatalf("Failed to create scaler client,because of %v", err)
+	}
+
+	cm.mapper = restMapper
+	cm.scaler = scaleClient
+
 	cm.cronExecutor = NewCronHPAExecutor(nil, cm.JobResultHandler)
 	return cm
 }
