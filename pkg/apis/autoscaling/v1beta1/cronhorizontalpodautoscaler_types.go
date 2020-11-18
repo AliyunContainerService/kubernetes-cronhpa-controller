@@ -27,7 +27,7 @@ import (
 type CronHorizontalPodAutoscalerSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	ExcludeDates   []string       `json:"excludeDates"`
+	ExcludeDates   []string       `json:"excludeDates,omitempty"`
 	ScaleTargetRef ScaleTargetRef `json:"scaleTargetRef"`
 	Jobs           []Job          `json:"jobs"`
 }
@@ -36,7 +36,7 @@ type Job struct {
 	Name     string `json:"name"`
 	Schedule string `json:"schedule"`
 	// job will only run once if enabled.
-	RunOnce    bool  `json:"runOnce"`
+	RunOnce    bool  `json:"runOnce,omitempty"`
 	TargetSize int32 `json:"targetSize"`
 }
 
@@ -78,17 +78,14 @@ type Condition struct {
 // CronHorizontalPodAutoscalerStatus defines the observed state of CronHorizontalPodAutoscaler
 type CronHorizontalPodAutoscalerStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	ScaleTargetRef ScaleTargetRef `json:"scaleTargetRef"`
-	ExcludeDates   []string       `json:"excludeDates"`
+	ScaleTargetRef ScaleTargetRef `json:"scaleTargetRef,omitempty"`
+	ExcludeDates   []string       `json:"excludeDates,omitempty"`
 	// Important: Run "make" to regenerate code after modifying this file
-	Conditions []Condition `json:"conditions"`
+	Conditions []Condition `json:"conditions,omitempty"`
 }
 
-// +genclient
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
+// +kubebuilder:object:root=true
 // CronHorizontalPodAutoscaler is the Schema for the cronhorizontalpodautoscalers API
-// +k8s:openapi-gen=true
 type CronHorizontalPodAutoscaler struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -97,8 +94,7 @@ type CronHorizontalPodAutoscaler struct {
 	Status CronHorizontalPodAutoscalerStatus `json:"status,omitempty"`
 }
 
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
+// +kubebuilder:object:root=true
 // CronHorizontalPodAutoscalerList contains a list of CronHorizontalPodAutoscaler
 type CronHorizontalPodAutoscalerList struct {
 	metav1.TypeMeta `json:",inline"`

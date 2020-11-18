@@ -1,4 +1,4 @@
-package cronhorizontalpodautoscaler
+package controller
 
 import (
 	"github.com/ringtail/go-cron"
