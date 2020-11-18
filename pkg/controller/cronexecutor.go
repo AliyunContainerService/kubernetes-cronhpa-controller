@@ -2,7 +2,7 @@ package controller
 
 import (
 	"github.com/ringtail/go-cron"
-	log "github.com/sirupsen/logrus"
+	log "k8s.io/klog/v2"
 	"time"
 )
 

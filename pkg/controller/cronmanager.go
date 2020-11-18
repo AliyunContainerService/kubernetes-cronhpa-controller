@@ -98,7 +98,7 @@ func (cm *CronManager) JobResultHandler(js *cron.JobResult) {
 	}, instance)
 
 	if e != nil {
-		log.Errorf("Failed to fetch CronHorizontalPodAutoscaler job %s of cronHPA %s in %s,because of %v", job.Name(), cronHpa.Name, cronHpa.Namespace, e)
+		log.Errorf("Failed to fetch job %s of cronHPA %s in %s namespace,because of %v", job.Name(), cronHpa.Name, cronHpa.Namespace, e)
 		return
 	}
 
@@ -191,13 +191,14 @@ func (cm *CronManager) Run(stopChan chan struct{}) {
 	cm.cronExecutor.Stop()
 }
 
-//
+// GC loop
 func (cm *CronManager) gcLoop() {
 	ticker := time.NewTicker(GCInterval)
 	go func() {
 		for {
 			select {
 			case <-ticker.C:
+				log.Infof("GC loop started every %v", GCInterval)
 				cm.GC()
 			}
 		}

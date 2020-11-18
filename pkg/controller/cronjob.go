@@ -8,7 +8,6 @@ import (
 	"github.com/ringtail/go-cron"
 	"github.com/satori/go.uuid"
 	autoscalingapi "k8s.io/api/autoscaling/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,8 +21,8 @@ import (
 )
 
 const (
-	updateRetryInterval = 5 * time.Second
-	maxRetryTimeout     = 1 * time.Minute
+	updateRetryInterval = 3 * time.Second
+	maxRetryTimeout     = 10 * time.Second
 	dateFormat          = "11-15-1990"
 )
 
@@ -105,7 +104,7 @@ func (ch *CronJobHPA) Run() (msg string, err error) {
 
 		// timeout and exit
 		if startTime.Add(maxRetryTimeout).Before(now) {
-			return "", fmt.Errorf("failed to scale (namespace: %s;kind: %s;name: %s) to %d after retrying %d times and exit,because of %v", ch.TargetRef.RefNamespace, ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.DesiredSize, times, err)
+			return "", fmt.Errorf("failed to scale %s %s in %s namespace to %d after retrying %d times and exit,because of %v", ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.TargetRef.RefNamespace, ch.DesiredSize, times, err)
 		}
 
 		// hpa compatible
@@ -164,12 +163,10 @@ func (ch *CronJobHPA) ScaleHPA() (msg string, err error) {
 			found = true
 			break
 		}
-		if apierrors.IsNotFound(err) {
-			break
-		}
 	}
 
 	if found == false {
+		log.Errorf("failed to found source target %s %s in %s namespace", ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.TargetRef.RefNamespace)
 		return "", fmt.Errorf("failed to found source target %s %s in %s namespace", ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.TargetRef.RefNamespace)
 	}
 
