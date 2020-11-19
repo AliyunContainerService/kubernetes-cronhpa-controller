@@ -15,9 +15,6 @@ limitations under the License.
 */
 
 // Package v1beta1 contains API Schema definitions for the autoscaling v1beta1 API group
-// +k8s:openapi-gen=true
-// +k8s:deepcopy-gen=package,register
-// +k8s:conversion-gen=github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis/autoscaling
-// +k8s:defaulter-gen=TypeMeta
+// +kubebuilder:object:generate=true
 // +groupName=autoscaling.alibabacloud.com
 package v1beta1

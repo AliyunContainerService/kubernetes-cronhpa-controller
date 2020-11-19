@@ -14,23 +14,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cronhorizontalpodautoscaler
+package controller
 
 import (
 	"context"
 	"fmt"
 	"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis/autoscaling/v1beta1"
 	autoscalingv1beta1 "github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis/autoscaling/v1beta1"
-	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	log "k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 	"strings"
 	"time"
 )
@@ -40,15 +37,8 @@ import (
 * business logic.  Delete these comments after modifying this file.*
  */
 
-// Add creates a new CronHorizontalPodAutoscaler Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
-// and Start it when the Manager is Started.
-// USER ACTION REQUIRED: update cmd/manager/main.go to call this autoscaling.Add(mgr) to install this Controller
-func Add(mgr manager.Manager) error {
-	return add(mgr, newReconciler(mgr))
-}
-
 // newReconciler returns a new reconcile.Reconciler
-func newReconciler(mgr manager.Manager) reconcile.Reconciler {
+func NewReconciler(mgr manager.Manager) reconcile.Reconciler {
 	var stopChan chan struct{}
 	cm := NewCronManager(mgr.GetConfig(), mgr.GetClient(), mgr.GetEventRecorderFor("CronHorizontalPodAutoscaler"))
 	r := &ReconcileCronHorizontalPodAutoscaler{Client: mgr.GetClient(), scheme: mgr.GetScheme(), CronManager: cm}
@@ -57,22 +47,6 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 		<-stopChan
 	}(cm, stopChan)
 	return r
-}
-
-// add adds a new Controller to mgr with r as the reconcile.Reconciler
-func add(mgr manager.Manager, r reconcile.Reconciler) error {
-	// Create a new controller
-	c, err := controller.New("CronHorizontalPodAutoscaler", mgr, controller.Options{Reconciler: r})
-	if err != nil {
-		return err
-	}
-
-	// Watch for changes to CronHorizontalPodAutoscaler
-	err = c.Watch(&source.Kind{Type: &autoscalingv1beta1.CronHorizontalPodAutoscaler{}}, &handler.EnqueueRequestForObject{})
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 var _ reconcile.Reconciler = &ReconcileCronHorizontalPodAutoscaler{}
@@ -93,6 +67,7 @@ type ReconcileCronHorizontalPodAutoscaler struct {
 // +kubebuilder:rbac:groups=autoscaling.alibabacloud.com,resources=cronhorizontalpodautoscalers,verbs=get;list;watch;create;update;patch;delete
 func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// Fetch the CronHorizontalPodAutoscaler instance
+	log.Infof("Start to handle cronHPA %s in %s namespace", request.Name, request.Namespace)
 	instance := &autoscalingv1beta1.CronHorizontalPodAutoscaler{}
 	err := r.Get(context.TODO(), request.NamespacedName, instance)
 	if err != nil {
@@ -106,7 +81,7 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 		return reconcile.Result{}, err
 	}
 
-	log.Infof("%v is handled by cron-hpa controller", instance.Name)
+	//log.Infof("%v is handled by cron-hpa controller", instance.Name)
 	conditions := instance.Status.Conditions
 
 	leftConditions := make([]v1beta1.Condition, 0)

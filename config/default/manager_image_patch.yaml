@@ -8,5 +8,5 @@ spec:
     spec:
       containers:
       # Change the value of image field below to your controller image URL
-      - image: registry.aliyuncs.com/acs/kubernetes-cronhpa-controller:v1.4.0-a4f64549-aliyun
+      - image: registry.aliyuncs.com/acs/kubernetes-cronhpa-controller:v1.4.0-b1bef851-aliyun
         name: manager

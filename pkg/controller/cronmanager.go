@@ -1,11 +1,11 @@
-package cronhorizontalpodautoscaler
+package controller
 
 import (
 	"context"
 	"fmt"
 	autoscalingv1beta1 "github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis/autoscaling/v1beta1"
+	scalelib "github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/lib"
 	"github.com/ringtail/go-cron"
-	log "github.com/sirupsen/logrus"
 	"k8s.io/api/core/v1"
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -17,6 +17,7 @@ import (
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/scale"
 	"k8s.io/client-go/tools/record"
+	log "k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sync"
 	"time"
@@ -25,12 +26,13 @@ import (
 const (
 	MaxRetryTimes    = 3
 	MaxRetryInterval = 1 * time.Second
+	GCInterval       = 5 * time.Minute
 )
 
 type NoNeedUpdate struct{}
 
 func (n NoNeedUpdate) Error() string {
-	return "NoNeedUpate"
+	return "NoNeedUpdate"
 }
 
 type CronManager struct {
@@ -54,6 +56,7 @@ func (cm *CronManager) createOrUpdate(j CronJob) error {
 			return fmt.Errorf("Failed to add job to cronExecutor,because of %v", err)
 		}
 		cm.jobQueue[j.ID()] = j
+		log.Infof("cronHPA job %s created, %d active jobs exist", j.Name(), len(cm.jobQueue))
 	} else {
 		job := cm.jobQueue[j.ID()]
 		if ok := job.Equals(j); !ok {
@@ -63,6 +66,7 @@ func (cm *CronManager) createOrUpdate(j CronJob) error {
 			}
 			//update job queue
 			cm.jobQueue[j.ID()] = j
+			log.Infof("cronHPA job %s updated, %d active jobs exist", j.Name(), len(cm.jobQueue))
 		} else {
 			return &NoNeedUpdate{}
 		}
@@ -79,6 +83,7 @@ func (cm *CronManager) delete(id string) error {
 			return fmt.Errorf("Failed to remove job from cronExecutor,because of %v", err)
 		}
 		delete(cm.jobQueue, id)
+		log.Infof("Remove job %s from jobQueue,%d active jobs left", j.Name(), len(cm.jobQueue))
 	}
 	return nil
 }
@@ -92,11 +97,12 @@ func (cm *CronManager) JobResultHandler(js *cron.JobResult) {
 		Name:      cronHpa.Name,
 	}, instance)
 
-	deepCopy := instance.DeepCopy()
 	if e != nil {
-		log.Errorf("Failed to fetch CronHorizontalPodAutoscaler job:%s namespace:%s cronHPA:%s,because of %v", job.Name(), cronHpa.Namespace, cronHpa.Name, e)
+		log.Errorf("Failed to fetch job %s of cronHPA %s in %s namespace,because of %v", job.Name(), cronHpa.Name, cronHpa.Namespace, e)
 		return
 	}
+
+	deepCopy := instance.DeepCopy()
 
 	var (
 		state     autoscalingv1beta1.JobState
@@ -107,7 +113,7 @@ func (cm *CronManager) JobResultHandler(js *cron.JobResult) {
 	err := js.Error
 	if err != nil {
 		state = autoscalingv1beta1.Failed
-		message = fmt.Sprintf("cron hpa failed to execute,because of %v", err)
+		message = fmt.Sprintf("cron hpa failed to execute, because of %v", err)
 		eventType = v1.EventTypeWarning
 	} else {
 		state = autoscalingv1beta1.Succeed
@@ -142,6 +148,10 @@ func (cm *CronManager) JobResultHandler(js *cron.JobResult) {
 
 	err = cm.updateCronHPAStatusWithRetry(instance, deepCopy, job.name)
 	if err != nil {
+		if _, ok := err.(*NoNeedUpdate); ok {
+			log.Warning("No need to update cronHPA,because it is deleted before")
+			return
+		}
 		cm.eventRecorder.Event(instance, v1.EventTypeWarning, "Failed", fmt.Sprintf("Failed to update cronhpa status: %v", err))
 	} else {
 		cm.eventRecorder.Event(instance, eventType, string(state), message)
@@ -150,10 +160,19 @@ func (cm *CronManager) JobResultHandler(js *cron.JobResult) {
 
 func (cm *CronManager) updateCronHPAStatusWithRetry(instance *autoscalingv1beta1.CronHorizontalPodAutoscaler, deepCopy *autoscalingv1beta1.CronHorizontalPodAutoscaler, jobName string) error {
 	var err error
+
+	if instance == nil {
+		log.Warning("Failed to patch cronHPA,because instance is deleted")
+		return &NoNeedUpdate{}
+	}
 	for i := 1; i <= MaxRetryTimes; i++ {
 		// leave ResourceVersion = empty
 		err = cm.client.Patch(context.Background(), instance, client.MergeFrom(deepCopy))
 		if err != nil {
+			if errors.IsNotFound(err) {
+				log.Error("Failed to patch cronHPA,because instance is deleted")
+				return &NoNeedUpdate{}
+			}
 			log.Errorf("Failed to patch cronHPAJob %v,because of %v", instance, err)
 			continue
 		}
@@ -167,8 +186,23 @@ func (cm *CronManager) updateCronHPAStatusWithRetry(instance *autoscalingv1beta1
 
 func (cm *CronManager) Run(stopChan chan struct{}) {
 	cm.cronExecutor.Run()
+	cm.gcLoop()
 	<-stopChan
 	cm.cronExecutor.Stop()
+}
+
+// GC loop
+func (cm *CronManager) gcLoop() {
+	ticker := time.NewTicker(GCInterval)
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				log.Infof("GC loop started every %v", GCInterval)
+				cm.GC()
+			}
+		}
+	}()
 }
 
 // GC will collect all jobs which ref is not exists and recycle.
@@ -179,7 +213,8 @@ func (cm *CronManager) GC() {
 		m[k] = v
 	}
 	cm.Unlock()
-
+	current := len(cm.jobQueue)
+	log.V(2).Infof("Current active jobs: %d,try to clean up the abandon ones.", current)
 	for _, job := range m {
 		hpa := job.(*CronJobHPA).HPARef
 		instance := &autoscalingv1beta1.CronHorizontalPodAutoscaler{}
@@ -190,13 +225,15 @@ func (cm *CronManager) GC() {
 			if errors.IsNotFound(err) {
 				err := cm.cronExecutor.RemoveJob(job)
 				if err != nil {
-					log.Errorf("Failed to gc job %s %s %s", hpa.Namespace, hpa.Name, job.Name())
+					log.Errorf("Failed to gc job %s in %s namespace", hpa.Name, hpa.Namespace)
 					continue
 				}
 				cm.delete(job.ID())
 			}
 		}
 	}
+	left := len(cm.jobQueue)
+	log.V(2).Infof("Current active jobs: %d, clean up %d jobs.", left, current-left)
 }
 
 func NewCronManager(cfg *rest.Config, client client.Client, recorder record.EventRecorder) *CronManager {
@@ -216,7 +253,7 @@ func NewCronManager(cfg *rest.Config, client client.Client, recorder record.Even
 	restMapper := restmapper.NewDiscoveryRESTMapper(resources)
 	// change the rest mapper to discovery resources
 	scaleKindResolver := scale.NewDiscoveryScaleKindResolver(hpaClient.Discovery())
-	scaleClient, err := scale.NewForConfig(cm.cfg, restMapper, dynamic.LegacyAPIPathResolverFunc, scaleKindResolver)
+	scaleClient, err := scalelib.NewForConfig(cm.cfg, restMapper, dynamic.LegacyAPIPathResolverFunc, scaleKindResolver)
 
 	if err != nil {
 		log.Fatalf("Failed to create scaler client,because of %v", err)

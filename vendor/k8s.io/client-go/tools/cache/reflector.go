@@ -421,7 +421,7 @@ func (r *Reflector) ListAndWatch(stopCh <-chan struct{}) error {
 					// So first try to LIST with setting RV to resource version of last observed object.
 					klog.V(4).Infof("%s: watch of %v closed with: %v", r.name, r.expectedTypeName, err)
 				default:
-					klog.V(5).Infof("%s: watch of %v ended with: %v", r.name, r.expectedTypeName, err)
+					klog.Warningf("%s: watch of %v ended with: %v", r.name, r.expectedTypeName, err)
 				}
 			}
 			return nil

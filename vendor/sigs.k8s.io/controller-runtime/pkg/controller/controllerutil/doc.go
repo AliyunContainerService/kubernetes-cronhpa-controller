@@ -1,5 +1,5 @@
 /*
-Copyright 2018 zhongwei.lzw@alibaba-inc.com.
+Copyright 2018 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,13 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controller
-
-import (
-	"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/controller/cronhorizontalpodautoscaler"
-)
-
-func init() {
-	// AddToManagerFuncs is a list of functions to create controllers and add them to a manager.
-	AddToManagerFuncs = append(AddToManagerFuncs, cronhorizontalpodautoscaler.Add)
-}
+/*
+Package controllerutil contains utility functions for working with and implementing Controllers.
+*/
+package controllerutil

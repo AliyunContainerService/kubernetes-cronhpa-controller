@@ -19,68 +19,52 @@ package main
 import (
 	"flag"
 	"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis"
+	autoscalingv1beta1 "github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis/autoscaling/v1beta1"
 	"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/controller"
-	"k8s.io/apimachinery/pkg/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	klog "k8s.io/klog/v2"
 	"os"
-	//"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/webhook"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	"sigs.k8s.io/controller-runtime/pkg/client/config"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/runtime/signals"
 )
 
 var (
 	enableLeaderElection bool
-	scheme               = runtime.NewScheme()
 )
-
-func init() {
-	_ = clientgoscheme.AddToScheme(scheme)
-	_ = apis.AddToScheme(scheme)
-}
 
 func main() {
 	flag.Parse()
-
-	logf.SetLogger(logf.ZapLogger(false))
-	log := logf.Log.WithName("entrypoint")
-
-	// Get a config to talk to the apiserver
-	log.Info("setting up client for manager")
-	cfg, err := config.GetConfig()
-	if err != nil {
-		log.Error(err, "unable to set up client config")
-		os.Exit(1)
-	}
-
-	// Create a new Cmd to provide shared dependencies and start components
-	log.Info("setting up manager")
-	mgr, err := manager.New(cfg, manager.Options{
-		Scheme:         scheme,
+	klog.Info("Start cronHPA controller.")
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		LeaderElection: enableLeaderElection,
 	})
 	if err != nil {
-		log.Error(err, "unable to set up overall controller manager")
+		klog.Errorf("Failed to set up controller manager,because of %v", err)
 		os.Exit(1)
 	}
 
-	// Setup all Controllers
-	log.Info("Setting up controller")
-	if err := controller.AddToManager(mgr); err != nil {
-		log.Error(err, "unable to register controllers to the manager")
+	// in a real controller, we'd create a new scheme for this
+	err = apis.AddToScheme(mgr.GetScheme())
+	if err != nil {
+		klog.Errorf("Failed to add apis to scheme,because of %v", err)
+		os.Exit(1)
+	}
+
+	err = ctrl.NewControllerManagedBy(mgr).
+		For(&autoscalingv1beta1.CronHorizontalPodAutoscaler{}).
+		Complete(controller.NewReconciler(mgr))
+	if err != nil {
+		klog.Errorf("Failed to set up controller watch loop,because of %v", err)
 		os.Exit(1)
 	}
 
 	// Start the Cmd
-	log.Info("Starting the Cmd.")
 	if err := mgr.Start(signals.SetupSignalHandler()); err != nil {
-		log.Error(err, "unable to run the manager")
+		klog.Errorf("Failed to start up controller manager,because of %v", err)
 		os.Exit(1)
 	}
 }
 
 func init() {
 	flag.BoolVar(&enableLeaderElection, "enableLeaderElection", false, "default false, if enabled the cronHPA would be in primary and standby mode.")
+	klog.InitFlags(nil)
 }

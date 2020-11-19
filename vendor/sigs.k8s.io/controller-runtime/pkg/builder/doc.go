@@ -1,5 +1,5 @@
 /*
-Copyright 2018 zhongwei.lzw@alibaba-inc.com.
+Copyright 2018 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,21 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controller
+// Package builder provides wraps other controller-runtime libraries and exposes simple
+// patterns for building common Controllers.
+//
+// Projects built with the builder package can trivially be rebased on top of the underlying
+// packages if the project requires more customized behavior in the future.
+package builder
 
 import (
-	"sigs.k8s.io/controller-runtime/pkg/manager"
+	logf "sigs.k8s.io/controller-runtime/pkg/internal/log"
 )
 
-// AddToManagerFuncs is a list of functions to add all Controllers to the Manager
-var AddToManagerFuncs []func(manager.Manager) error
-
-// AddToManager adds all Controllers to the Manager
-func AddToManager(m manager.Manager) error {
-	for _, f := range AddToManagerFuncs {
-		if err := f(m); err != nil {
-			return err
-		}
-	}
-	return nil
-}
+var log = logf.RuntimeLog.WithName("builder")

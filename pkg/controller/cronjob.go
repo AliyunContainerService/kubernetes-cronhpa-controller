@@ -1,4 +1,4 @@
-package cronhorizontalpodautoscaler
+package controller
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 	"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis/autoscaling/v1beta1"
 	"github.com/ringtail/go-cron"
 	"github.com/satori/go.uuid"
-	log "github.com/sirupsen/logrus"
 	autoscalingapi "k8s.io/api/autoscaling/v1"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,14 +14,15 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	scaleclient "k8s.io/client-go/scale"
+	log "k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strings"
 	"time"
 )
 
 const (
-	updateRetryInterval = 5 * time.Second
-	maxRetryTimeout     = 1 * time.Minute
+	updateRetryInterval = 3 * time.Second
+	maxRetryTimeout     = 10 * time.Second
 	dateFormat          = "11-15-1990"
 )
 
@@ -104,7 +104,7 @@ func (ch *CronJobHPA) Run() (msg string, err error) {
 
 		// timeout and exit
 		if startTime.Add(maxRetryTimeout).Before(now) {
-			return "", fmt.Errorf("failed to scale (namespace: %s;kind: %s;name: %s) to %d after retrying %d times and exit,because of %v", ch.TargetRef.RefNamespace, ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.DesiredSize, times, err)
+			return "", fmt.Errorf("failed to scale %s %s in %s namespace to %d after retrying %d times and exit,because of %v", ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.TargetRef.RefNamespace, ch.DesiredSize, times, err)
 		}
 
 		// hpa compatible
@@ -166,7 +166,8 @@ func (ch *CronJobHPA) ScaleHPA() (msg string, err error) {
 	}
 
 	if found == false {
-		return "", fmt.Errorf("Failed to found source target %s", ch.TargetRef.RefName)
+		log.Errorf("failed to found source target %s %s in %s namespace", ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.TargetRef.RefNamespace)
+		return "", fmt.Errorf("failed to found source target %s %s in %s namespace", ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.TargetRef.RefNamespace)
 	}
 
 	updateHPA := false
@@ -209,7 +210,7 @@ func (ch *CronJobHPA) ScaleHPA() (msg string, err error) {
 	scale.Spec.Replicas = int32(ch.DesiredSize)
 	_, err = ch.scaler.Scales(ch.TargetRef.RefNamespace).Update(context.Background(), targetGR, scale, metav1.UpdateOptions{})
 	if err != nil {
-		return "", fmt.Errorf("Failed to scale (namespace: %s;kind: %s;name: %s) to %d,because of %v", ch.TargetRef.RefNamespace, ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.DesiredSize, err)
+		return "", fmt.Errorf("failed to scale %s %s in %s namespace to %d, because of %v", ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.TargetRef.RefNamespace, ch.DesiredSize, err)
 	}
 	return msg, nil
 }
@@ -233,15 +234,14 @@ func (ch *CronJobHPA) ScalePlainRef() (msg string, err error) {
 		scale, err = ch.scaler.Scales(ch.TargetRef.RefNamespace).Get(context.Background(), targetGR, ch.TargetRef.RefName, v1.GetOptions{})
 		if err == nil {
 			found = true
-			log.Infof("%s %s in namespace %s has been scaled successfully. Job: %s Replicas: %d", ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.TargetRef.RefNamespace, ch.Name(), ch.DesiredSize)
+			log.Infof("%s %s in namespace %s has been scaled successfully. job: %s replicas: %d", ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.TargetRef.RefNamespace, ch.Name(), ch.DesiredSize)
 			break
-		} else {
-			log.Warningf("Skip source target %s,because of %v", ch.TargetRef.RefName, err)
 		}
 	}
 
 	if found == false {
-		return "", fmt.Errorf("Failed to found source target %s", ch.TargetRef.RefName)
+		log.Errorf("failed to find source target %s %s in %s namespace", ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.TargetRef.RefNamespace)
+		return "", fmt.Errorf("failed to find source target %s %s in %s namespace", ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.TargetRef.RefNamespace)
 	}
 
 	msg = fmt.Sprintf("current replicas:%d, desired replicas:%d.", scale.Spec.Replicas, ch.DesiredSize)
@@ -249,7 +249,7 @@ func (ch *CronJobHPA) ScalePlainRef() (msg string, err error) {
 	scale.Spec.Replicas = int32(ch.DesiredSize)
 	_, err = ch.scaler.Scales(ch.TargetRef.RefNamespace).Update(context.Background(), targetGR, scale, metav1.UpdateOptions{})
 	if err != nil {
-		return "", fmt.Errorf("Failed to scale (namespace: %s;kind: %s;name: %s) to %d,because of %v", ch.TargetRef.RefNamespace, ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.DesiredSize, err)
+		return "", fmt.Errorf("failed to scale %s %s in %s namespace to %d, because of %v", ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.TargetRef.RefNamespace, ch.DesiredSize, err)
 	}
 	return msg, nil
 }
