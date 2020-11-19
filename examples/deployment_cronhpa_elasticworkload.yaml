@@ -1,3 +1,5 @@
+# cronhpa is not only for deployment or statefulset
+# any object implements scaler interface could be the scaleTargetRef
 ---
 apiVersion: apps/v1 # for versions before 1.8.0 use apps/v1beta1
 kind: Deployment
@@ -20,6 +22,30 @@ spec:
         image: nginx:1.7.9 # replace it with your exactly <image_name:tags>
         ports:
         - containerPort: 80
+--- 
+apiVersion: autoscaling.alibabacloud.com/v1beta1
+kind: ElasticWorkload
+metadata:
+  name: elasticworkload-sample
+spec:
+  sourceTarget:
+    name: nginx-deployment-basic
+    kind: Deployment 
+    apiVersion: apps/v1 
+    min: 0 
+    max: 3
+  replicas: 5 
+  elasticUnit:
+  - name: demo
+    labels:
+      virtual-kubelet: "true"
+    annotations:
+      virtual-kubelet: "true"
+    nodeSelector:
+      type: "virtual-kubelet"
+    tolerations:
+    - key: "virtual-kubelet.io/provider"
+      operator: "Exists"
 ---
 apiVersion: autoscaling.alibabacloud.com/v1beta1
 kind: CronHorizontalPodAutoscaler
@@ -29,9 +55,9 @@ metadata:
   name: cronhpa-sample
 spec:
    scaleTargetRef:
-      apiVersion: apps/v1
-      kind: Deployment
-      name: nginx-deployment-basic
+      apiVersion: autoscaling.alibabacloud.com/v1beta1
+      kind: ElasticWorkload
+      name: elasticworkload-sample
    jobs:
    - name: "scale-down"
      schedule: "30 */1 * * * *"
