@@ -85,6 +85,7 @@ type CronHorizontalPodAutoscalerStatus struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:resource:shortName=cronhpa
 // CronHorizontalPodAutoscaler is the Schema for the cronhorizontalpodautoscalers API
 type CronHorizontalPodAutoscaler struct {
 	metav1.TypeMeta   `json:",inline"`
