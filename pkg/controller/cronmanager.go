@@ -24,9 +24,8 @@ import (
 )
 
 const (
-	MaxRetryTimes    = 3
-	MaxRetryInterval = 1 * time.Second
-	GCInterval       = 5 * time.Minute
+	MaxRetryTimes = 3
+	GCInterval    = 10 * time.Minute
 )
 
 type NoNeedUpdate struct{}
@@ -56,17 +55,18 @@ func (cm *CronManager) createOrUpdate(j CronJob) error {
 			return fmt.Errorf("Failed to add job to cronExecutor,because of %v", err)
 		}
 		cm.jobQueue[j.ID()] = j
-		log.Infof("cronHPA job %s created, %d active jobs exist", j.Name(), len(cm.jobQueue))
+		log.Infof("cronHPA job %s of cronHPA %s in %s created, %d active jobs exist", j.Name(), j.CronHPAMeta().Name, j.CronHPAMeta().Namespace,
+			len(cm.jobQueue))
 	} else {
 		job := cm.jobQueue[j.ID()]
 		if ok := job.Equals(j); !ok {
 			err := cm.cronExecutor.Update(j)
 			if err != nil {
-				return fmt.Errorf("Failed to update job to cronExecutor,because of %v", err)
+				return fmt.Errorf("failed to update job %s of cronHPA %s in %s to cronExecutor, because of %v", job.Name(), job.CronHPAMeta().Name, job.CronHPAMeta().Namespace, err)
 			}
 			//update job queue
 			cm.jobQueue[j.ID()] = j
-			log.Infof("cronHPA job %s updated, %d active jobs exist", j.Name(), len(cm.jobQueue))
+			log.Infof("cronHPA job %s of cronHPA %s in %s updated, %d active jobs exist", j.Name(), j.CronHPAMeta().Name, j.CronHPAMeta().Namespace, len(cm.jobQueue))
 		} else {
 			return &NoNeedUpdate{}
 		}
@@ -83,7 +83,7 @@ func (cm *CronManager) delete(id string) error {
 			return fmt.Errorf("Failed to remove job from cronExecutor,because of %v", err)
 		}
 		delete(cm.jobQueue, id)
-		log.Infof("Remove job %s from jobQueue,%d active jobs left", j.Name(), len(cm.jobQueue))
+		log.Infof("Remove cronHPA job %s of cronHPA %s in %s from jobQueue,%d active jobs left", j.Name(), j.CronHPAMeta().Name, j.CronHPAMeta().Namespace, len(cm.jobQueue))
 	}
 	return nil
 }
@@ -98,7 +98,7 @@ func (cm *CronManager) JobResultHandler(js *cron.JobResult) {
 	}, instance)
 
 	if e != nil {
-		log.Errorf("Failed to fetch job %s of cronHPA %s in %s namespace,because of %v", job.Name(), cronHpa.Name, cronHpa.Namespace, e)
+		log.Errorf("Failed to fetch cronHPA job %s of cronHPA %s in %s namespace,because of %v", job.Name(), cronHpa.Name, cronHpa.Namespace, e)
 		return
 	}
 
@@ -149,7 +149,7 @@ func (cm *CronManager) JobResultHandler(js *cron.JobResult) {
 	err = cm.updateCronHPAStatusWithRetry(instance, deepCopy, job.name)
 	if err != nil {
 		if _, ok := err.(*NoNeedUpdate); ok {
-			log.Warning("No need to update cronHPA,because it is deleted before")
+			log.Warning("No need to update cronHPA, because it is deleted before")
 			return
 		}
 		cm.eventRecorder.Event(instance, v1.EventTypeWarning, "Failed", fmt.Sprintf("Failed to update cronhpa status: %v", err))
@@ -160,9 +160,8 @@ func (cm *CronManager) JobResultHandler(js *cron.JobResult) {
 
 func (cm *CronManager) updateCronHPAStatusWithRetry(instance *autoscalingv1beta1.CronHorizontalPodAutoscaler, deepCopy *autoscalingv1beta1.CronHorizontalPodAutoscaler, jobName string) error {
 	var err error
-
 	if instance == nil {
-		log.Warning("Failed to patch cronHPA,because instance is deleted")
+		log.Warning("Failed to patch cronHPA, because instance is deleted")
 		return &NoNeedUpdate{}
 	}
 	for i := 1; i <= MaxRetryTimes; i++ {
@@ -170,16 +169,16 @@ func (cm *CronManager) updateCronHPAStatusWithRetry(instance *autoscalingv1beta1
 		err = cm.client.Patch(context.Background(), instance, client.MergeFrom(deepCopy))
 		if err != nil {
 			if errors.IsNotFound(err) {
-				log.Error("Failed to patch cronHPA,because instance is deleted")
+				log.Error("Failed to patch cronHPA, because instance is deleted")
 				return &NoNeedUpdate{}
 			}
-			log.Errorf("Failed to patch cronHPAJob %v,because of %v", instance, err)
+			log.Errorf("Failed to patch cronHPA %v, because of %v", instance, err)
 			continue
 		}
 		break
 	}
 	if err != nil {
-		log.Errorf("Failed to update cronHPA job:%s namespace:%s cronHPA:%s after %d times,because of %v", jobName, instance.Namespace, instance.Name, MaxRetryTimes, err)
+		log.Errorf("Failed to update cronHPA job %s of cronHPA %s in %s after %d times, because of %v", jobName, instance.Name, instance.Namespace, MaxRetryTimes, err)
 	}
 	return err
 }
@@ -198,7 +197,7 @@ func (cm *CronManager) gcLoop() {
 		for {
 			select {
 			case <-ticker.C:
-				log.Infof("GC loop started every %v", GCInterval)
+				log.V(2).Infof("GC loop started every %v", GCInterval)
 				cm.GC()
 			}
 		}
@@ -217,18 +216,24 @@ func (cm *CronManager) GC() {
 	log.V(2).Infof("Current active jobs: %d,try to clean up the abandon ones.", current)
 	for _, job := range m {
 		hpa := job.(*CronJobHPA).HPARef
-		instance := &autoscalingv1beta1.CronHorizontalPodAutoscaler{}
-		if err := cm.client.Get(context.Background(), types.NamespacedName{
-			Namespace: hpa.Namespace,
-			Name:      hpa.Name,
-		}, instance); err != nil {
-			if errors.IsNotFound(err) {
-				err := cm.cronExecutor.RemoveJob(job)
-				if err != nil {
-					log.Errorf("Failed to gc job %s in %s namespace", hpa.Name, hpa.Namespace)
-					continue
+		if !cm.cronExecutor.FindJob(job) {
+			log.Warningf("Failed to found job %s of cronHPA %s in %s in cron engine and resubmit the job.", job.Name(), hpa.Name, hpa.Namespace)
+			cm.cronExecutor.AddJob(job)
+			continue
+		} else {
+			instance := &autoscalingv1beta1.CronHorizontalPodAutoscaler{}
+			if err := cm.client.Get(context.Background(), types.NamespacedName{
+				Namespace: hpa.Namespace,
+				Name:      hpa.Name,
+			}, instance); err != nil {
+				if errors.IsNotFound(err) {
+					err := cm.cronExecutor.RemoveJob(job)
+					if err != nil {
+						log.Errorf("Failed to gc job %s of cronHPA %s in %s namespace", job.Name(), hpa.Name, hpa.Namespace)
+						continue
+					}
+					cm.delete(job.ID())
 				}
-				cm.delete(job.ID())
 			}
 		}
 	}
@@ -248,7 +253,7 @@ func NewCronManager(cfg *rest.Config, client client.Client, recorder record.Even
 	discoveryClient := clientset.NewForConfigOrDie(cm.cfg)
 	resources, err := restmapper.GetAPIGroupResources(discoveryClient)
 	if err != nil {
-		log.Fatalf("Failed to get api resources,because of %v", err)
+		log.Fatalf("Failed to get api resources, because of %v", err)
 	}
 	restMapper := restmapper.NewDiscoveryRESTMapper(resources)
 	// change the rest mapper to discovery resources

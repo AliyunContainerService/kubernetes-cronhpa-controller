@@ -33,6 +33,7 @@ type CronJob interface {
 	Equals(Job CronJob) bool
 	SchedulePlan() string
 	Ref() *TargetRef
+	CronHPAMeta() *v1beta1.CronHorizontalPodAutoscaler
 	Run() (msg string, err error)
 }
 
@@ -89,6 +90,10 @@ func (ch *CronJobHPA) SchedulePlan() string {
 
 func (ch *CronJobHPA) Ref() *TargetRef {
 	return ch.TargetRef
+}
+
+func (ch *CronJobHPA) CronHPAMeta() *v1beta1.CronHorizontalPodAutoscaler {
+	return ch.HPARef
 }
 
 func (ch *CronJobHPA) Run() (msg string, err error) {
