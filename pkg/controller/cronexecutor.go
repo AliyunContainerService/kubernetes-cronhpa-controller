@@ -6,6 +6,10 @@ import (
 	"time"
 )
 
+const (
+	maxOutOfDateTimeout = time.Minute * 5
+)
+
 type CronConfig struct {
 	Timezone *time.Location
 }
@@ -41,7 +45,8 @@ func (ce *CronHPAExecutor) FindJob(job CronJob) bool {
 	entries := ce.Engine.Entries()
 	for _, e := range entries {
 		if e.Job.ID() == job.ID() {
-			if e.Next.After(time.Now()) {
+			// clean up out of date jobs when it reach maxOutOfDateTimeout
+			if e.Next.Add(maxOutOfDateTimeout).After(time.Now()) {
 				return true
 			}
 			log.Warningf("The job %s is out of date and need to be clean up.", job.Name())

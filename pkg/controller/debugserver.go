@@ -18,6 +18,7 @@ func (ws *WebServer) serve() {
 	r := mux.NewRouter()
 	r.HandleFunc("/api.json", ws.handleJobsController)
 	r.HandleFunc("/index.html", ws.handleIndexController)
+	r.HandleFunc("/", ws.handleIndexController)
 	http.Handle("/", r)
 
 	srv := &http.Server{
