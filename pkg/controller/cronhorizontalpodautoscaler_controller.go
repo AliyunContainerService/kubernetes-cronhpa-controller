@@ -46,6 +46,11 @@ func NewReconciler(mgr manager.Manager) reconcile.Reconciler {
 		cm.Run(stopChan)
 		<-stopChan
 	}(cm, stopChan)
+
+	go func(cronManager *CronManager, stopChan chan struct{}) {
+		server := NewWebServer(cronManager)
+		server.serve()
+	}(cm, stopChan)
 	return r
 }
 
