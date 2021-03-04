@@ -8,7 +8,7 @@
 ## Installation 
 1. install CRD 
 ```$xslt
-kubectl apply -f config/crds/autoscaling_v1beta1_cronhorizontalpodautoscaler.yaml
+kubectl apply -f config/crds/autoscaling.alibabacloud.com_cronhorizontalpodautoscalers.yaml
 ```
 2. install RBAC settings 
 ```$xslt
