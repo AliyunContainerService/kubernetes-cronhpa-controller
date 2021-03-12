@@ -22,6 +22,8 @@ import (
 	autoscalingv1beta1 "github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis/autoscaling/v1beta1"
 	"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/controller"
 	klog "k8s.io/klog/v2"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/runtime/signals"
@@ -29,13 +31,18 @@ import (
 
 var (
 	enableLeaderElection bool
+	pprofAddr            string
+	metricsAddr          string
 )
 
 func main() {
+	flag.StringVar(&pprofAddr, "pprof-bind-address", ":6060", "The address the pprof endpoint binds to.")
+	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.Parse()
 	klog.Info("Start cronHPA controller.")
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		LeaderElection: enableLeaderElection,
+		LeaderElection:     enableLeaderElection,
+		MetricsBindAddress: metricsAddr,
 	})
 	if err != nil {
 		klog.Errorf("Failed to set up controller manager,because of %v", err)
@@ -56,6 +63,10 @@ func main() {
 		klog.Errorf("Failed to set up controller watch loop,because of %v", err)
 		os.Exit(1)
 	}
+
+	go func() {
+		http.ListenAndServe(pprofAddr, nil)
+	}()
 
 	// Start the Cmd
 	if err := mgr.Start(signals.SetupSignalHandler()); err != nil {
