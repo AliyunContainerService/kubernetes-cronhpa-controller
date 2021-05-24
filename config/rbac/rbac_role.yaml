@@ -52,6 +52,7 @@ rules:
       - autoscaling.alibabacloud.com
     resources:
       - cronhorizontalpodautoscalers
+      - elasticworkloads
     verbs:
       - get
       - list
