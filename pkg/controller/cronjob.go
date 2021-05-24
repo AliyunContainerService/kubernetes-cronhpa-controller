@@ -179,24 +179,15 @@ func (ch *CronJobHPA) ScaleHPA() (msg string, err error) {
 
 	if ch.DesiredSize > hpa.Spec.MaxReplicas {
 		hpa.Spec.MaxReplicas = ch.DesiredSize
-		updateHPA = true
-	}
-
-	if ch.DesiredSize < *hpa.Spec.MinReplicas {
 		*hpa.Spec.MinReplicas = ch.DesiredSize
 		updateHPA = true
 	}
 
-	//
-	if hpa.Status.CurrentReplicas == *hpa.Spec.MinReplicas && ch.DesiredSize < hpa.Status.CurrentReplicas {
+	if ch.DesiredSize <= hpa.Spec.MaxReplicas {
 		*hpa.Spec.MinReplicas = ch.DesiredSize
 		updateHPA = true
 	}
 
-	if hpa.Status.CurrentReplicas < ch.DesiredSize {
-		*hpa.Spec.MinReplicas = ch.DesiredSize
-		updateHPA = true
-	}
 
 	if updateHPA {
 		err = ch.client.Update(ctx, hpa)
@@ -205,10 +196,6 @@ func (ch *CronJobHPA) ScaleHPA() (msg string, err error) {
 		}
 	}
 
-	if hpa.Status.CurrentReplicas >= ch.DesiredSize {
-		// skip change replicas and exit
-		return fmt.Sprintf("Skip scale replicas because HPA %s current replicas:%d >= desired replicas:%d.", hpa.Name, scale.Spec.Replicas, ch.DesiredSize), nil
-	}
 
 	msg = fmt.Sprintf("current replicas:%d, desired replicas:%d.", scale.Spec.Replicas, ch.DesiredSize)
 
