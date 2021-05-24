@@ -172,7 +172,7 @@ func (ch *CronJobHPA) ScaleHPA() (msg string, err error) {
 
 	if found == false {
 		log.Errorf("failed to found source target %s %s in %s namespace", ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.TargetRef.RefNamespace)
-		return "", fmt.Errorf("failed to found source target %s %s in %s namespace", ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.TargetRef.RefNamespace)
+		return "", fmt.Errorf("failed to found source target %s %s in %s namespace, err is %v", ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.TargetRef.RefNamespace, err)
 	}
 
 	updateHPA := false
