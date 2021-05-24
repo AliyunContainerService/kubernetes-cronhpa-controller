@@ -22,3 +22,5 @@ bin
 *.swp
 *.swo
 *~
+config/default/manager_image_patch*
+config/default/manager_image_patch.yaml-e

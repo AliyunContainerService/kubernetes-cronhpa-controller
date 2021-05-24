@@ -47,7 +47,7 @@ func (v ExcludeDatesValidator) Validate(val interface{}) (bool, error) {
 	return true, nil
 }
 
-func (v DefaultValidator) Validate(val interface{}) (bool,error) {
+func (v DefaultValidator) Validate(val interface{}) (bool, error) {
 	return true, nil
 }
 
@@ -62,7 +62,7 @@ func getValidatorFromTag(tag string) Validator {
 	return DefaultValidator{}
 }
 
-func Validate(s interface{}) (bool, []error){
+func Validate(s interface{}) (bool, []error) {
 	errs := []error{}
 	pass := true
 	v := reflect.ValueOf(s)
@@ -70,7 +70,7 @@ func Validate(s interface{}) (bool, []error){
 		// Get the field tag value
 		tag := strings.TrimSpace(v.Type().Field(i).Tag.Get(tagName))
 
-		if tag == "" || tag=="-" {
+		if tag == "" || tag == "-" {
 			continue
 		}
 		// Get a validator
@@ -86,5 +86,3 @@ func Validate(s interface{}) (bool, []error){
 	}
 	return pass, errs
 }
-
-

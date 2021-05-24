@@ -1,7 +1,8 @@
 # build params
 PREFIX?=registry.aliyuncs.com/acs
-VERSION?=v1.3.0
+VERSION?=v1.4.0
 GIT_COMMIT:=$(shell git rev-parse --short HEAD)
+CRD_OPTIONS ?= "crd:trivialVersions=true,maxDescLen=0"
 
 # Image URL to use all building/pushing image targets
 IMG ?= $(PREFIX)/kubernetes-cronhpa-controller:$(VERSION)-$(GIT_COMMIT)-aliyun
@@ -9,7 +10,9 @@ all: test kubernetes-cronhpa-controller
 
 # Run tests
 test: generate fmt vet
-	go test ./pkg/... ./cmd/... -coverprofile cover.out
+	TRAVIS=true go test github.com/AliyunContainerService/kubernetes-cronhpa-controller/cmd/... \
+	    github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/...  \
+	        -coverprofile cover.out
 
 # Build kubernetes-cronhpa-controller binary
 kubernetes-cronhpa-controller: generate fmt vet
@@ -29,20 +32,22 @@ deploy: manifests
 	kustomize build config/default | kubectl apply -f -
 
 # Generate manifests e.g. CRD, RBAC etc.
-manifests:
-	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go all
+manifests: controller-gen
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./..." output:crd:artifacts:config=config/crds
 
 # Run go fmt against code
 fmt:
-	go fmt ./pkg/... ./cmd/...
+	go fmt github.com/AliyunContainerService/kubernetes-cronhpa-controller/cmd/... \
+           	    github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/...
 
 # Run go vet against code
 vet:
-	go vet ./pkg/... ./cmd/...
+	go vet github.com/AliyunContainerService/kubernetes-cronhpa-controller/cmd/... \
+           	    github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/...
 
 # Generate code
-generate:
-	go generate ./pkg/... ./cmd/...
+generate: controller-gen
+    $(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 # Build the docker image
 docker-build: test
@@ -53,3 +58,20 @@ docker-build: test
 # Push the docker image
 docker-push:
 	docker push ${IMG}
+
+# find or download controller-gen
+# download controller-gen if necessary
+controller-gen:
+ifeq (, $(shell which controller-gen))
+	@{ \
+	set -e ;\
+	CONTROLLER_GEN_TMP_DIR=$$(mktemp -d) ;\
+	cd $$CONTROLLER_GEN_TMP_DIR ;\
+	go mod init tmp ;\
+	go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.2.5 ;\
+	rm -rf $$CONTROLLER_GEN_TMP_DIR ;\
+	}
+CONTROLLER_GEN=$(GOBIN)/controller-gen
+else
+CONTROLLER_GEN=$(shell which controller-gen)
+endif

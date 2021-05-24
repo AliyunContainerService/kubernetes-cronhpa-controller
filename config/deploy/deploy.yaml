@@ -25,7 +25,6 @@ metadata:
     controller-tools.k8s.io: "2.0"
 spec:
   replicas: 1 # The default is primary and standby mode (currently cold standby)
-
   selector:
     matchLabels:
       app: kubernetes-cronhpa-controller
@@ -37,12 +36,12 @@ spec:
         controller-tools.k8s.io: "2.0"
     spec:
       containers:
-      - command:
-        - /root/kubernetes-cronhpa-controller
-#        - -enableLeaderElection=true
-        image: registry.aliyuncs.com/ringtail/kubernetes-cronhpa-controller:v1.3.0-8e82633c-aliyun
+      - image: registry.aliyuncs.com/acs/kubernetes-cronhpa-controller:v1.4.0-fc4f6060-aliyun
         imagePullPolicy: Always
         name: kubernetes-cronhpa-controller
+        env:
+        - name: TZ
+          value: "Asia/Shanghai"
         resources:
           limits:
             cpu: 100m
@@ -51,3 +50,4 @@ spec:
             cpu: 100m
             memory: 100Mi
       serviceAccount: kubernetes-cronhpa-controller
+

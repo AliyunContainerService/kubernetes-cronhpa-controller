@@ -376,5 +376,40 @@ func parseDescriptor(descriptor string) (Schedule, error) {
 		return Every(duration), nil
 	}
 
+	const date = "@date "
+	if strings.HasPrefix(descriptor, date) {
+		ss, err := parseDateSchedule(descriptor[len(date):])
+		if err != nil {
+			return nil, fmt.Errorf("Failed to parse date %s: %s", descriptor, err)
+		}
+		return ss, nil
+	}
+
 	return nil, fmt.Errorf("Unrecognized descriptor: %s", descriptor)
+}
+
+// add go date format
+func parseDateSchedule(schedule string) (*SpecSchedule, error) {
+	date, err := time.Parse("2006-01-02 15:04:05", schedule)
+	if err != nil {
+		return nil, err
+	}
+
+	field := func(field string, r bounds) uint64 {
+		if err != nil {
+			return 0
+		}
+		var bits uint64
+		bits, err = getField(field, r)
+		return bits
+	}
+
+	return &SpecSchedule{
+		Second: field(strconv.Itoa(date.Second()), seconds),
+		Minute: field(strconv.Itoa(date.Minute()), minutes),
+		Hour:   field(strconv.Itoa(date.Hour()), hours),
+		Dom:    field(strconv.Itoa(date.Day()), dom),
+		Month:  field(strconv.Itoa(int(date.Month())), months),
+		Dow:    all(dow),
+	}, nil
 }

@@ -1,0 +1,19 @@
+name: kubernetes-cronhpa-controller
+description: kubernetes-cronhpa-controller is a kubernetes cron horizontal pod autoscaler
+  controller using crontab like scheme. You can use CronHorizontalPodAutoscaler with
+  any kind object defined in kubernetes which support scale subresource(such as Deployment
+  and StatefulSet).
+version: 1.3.0
+appVersion: "v1beta1"
+kubeVersion: ">=1.7.0-0"
+keywords:
+  - cronhpa
+  - namespace:kube-system
+  - releaseName:kubernetes-cronhpa-controller
+  - category:autoscaling
+home: https://github.com/AliyunContainerService/kubernetes-cronhpa-controller
+maintainers:
+  - name: carson
+    email: wb-gq555900@alibaba-inc.com
+  - name: ringtail
+    email: zhongwei.lzw@alibaba-inc.com

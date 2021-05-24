@@ -19,74 +19,63 @@ package main
 import (
 	"flag"
 	"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis"
+	autoscalingv1beta1 "github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis/autoscaling/v1beta1"
 	"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/controller"
+	klog "k8s.io/klog/v2"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
-	//"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/webhook"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	"sigs.k8s.io/controller-runtime/pkg/client/config"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/runtime/signals"
 )
 
 var (
 	enableLeaderElection bool
+	pprofAddr            string
+	metricsAddr          string
 )
 
 func main() {
+	flag.StringVar(&pprofAddr, "pprof-bind-address", ":6060", "The address the pprof endpoint binds to.")
+	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.Parse()
-
-	logf.SetLogger(logf.ZapLogger(false))
-	log := logf.Log.WithName("entrypoint")
-
-	// Get a config to talk to the apiserver
-	log.Info("setting up client for manager")
-	cfg, err := config.GetConfig()
-	if err != nil {
-		log.Error(err, "unable to set up client config")
-		os.Exit(1)
-	}
-
-	// Create a new Cmd to provide shared dependencies and start components
-	log.Info("setting up manager")
-	mgr, err := manager.New(cfg, manager.Options{
-		LeaderElection: enableLeaderElection,
+	klog.Info("Start cronHPA controller.")
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+		LeaderElection:     enableLeaderElection,
+		MetricsBindAddress: metricsAddr,
 	})
 	if err != nil {
-		log.Error(err, "unable to set up overall controller manager")
+		klog.Errorf("Failed to set up controller manager,because of %v", err)
 		os.Exit(1)
 	}
 
-	log.Info("Registering Components.")
-
-	// Setup Scheme for all resources
-	log.Info("setting up scheme")
-	if err := apis.AddToScheme(mgr.GetScheme()); err != nil {
-		log.Error(err, "unable add APIs to scheme")
+	// in a real controller, we'd create a new scheme for this
+	err = apis.AddToScheme(mgr.GetScheme())
+	if err != nil {
+		klog.Errorf("Failed to add apis to scheme,because of %v", err)
 		os.Exit(1)
 	}
 
-	// Setup all Controllers
-	log.Info("Setting up controller")
-	if err := controller.AddToManager(mgr); err != nil {
-		log.Error(err, "unable to register controllers to the manager")
+	err = ctrl.NewControllerManagedBy(mgr).
+		For(&autoscalingv1beta1.CronHorizontalPodAutoscaler{}).
+		Complete(controller.NewReconciler(mgr))
+	if err != nil {
+		klog.Errorf("Failed to set up controller watch loop,because of %v", err)
 		os.Exit(1)
 	}
 
-	//log.Info("setting up webhooks")
-	//if err := webhook.AddToManager(mgr); err != nil {
-	//	log.Error(err, "unable to register webhooks to the manager")
-	//	os.Exit(1)
-	//}
+	go func() {
+		http.ListenAndServe(pprofAddr, nil)
+	}()
 
 	// Start the Cmd
-	log.Info("Starting the Cmd.")
 	if err := mgr.Start(signals.SetupSignalHandler()); err != nil {
-		log.Error(err, "unable to run the manager")
+		klog.Errorf("Failed to start up controller manager,because of %v", err)
 		os.Exit(1)
 	}
 }
 
 func init() {
 	flag.BoolVar(&enableLeaderElection, "enableLeaderElection", false, "default false, if enabled the cronHPA would be in primary and standby mode.")
+	klog.InitFlags(nil)
 }

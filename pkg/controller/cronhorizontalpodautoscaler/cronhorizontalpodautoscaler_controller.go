@@ -80,7 +80,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	configFn := handler.ToRequestsFunc(func(configMapObject handler.MapObject) []reconcile.Request {
 		var reqs []reconcile.Request
 		instanceList := &autoscalingv1beta1.CronHorizontalPodAutoscalerList{}
-		err = mgr.GetClient().List(context.TODO(), instanceList, client.InNamespace(configMapObject.Meta.GetNamespace()), client.MatchingFields{"spec.excludeDatesConfigMap":configMapObject.Meta.GetName()})
+		err = mgr.GetClient().List(context.TODO(), instanceList, client.InNamespace(configMapObject.Meta.GetNamespace()), client.MatchingFields{"spec.excludeDatesConfigMap": configMapObject.Meta.GetName()})
 		if err != nil {
 			log.Info("Could not find CronHorizontalPodAutoscaler instance, for reconciling configmap.")
 			return []reconcile.Request{}
@@ -142,7 +142,7 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 	// Fetch the configMap instance if ExcludeDatesConfigMap not empty
 	if instance.Spec.ExcludeDatesConfigMap != "" {
 		configMapFound := &corev1.ConfigMap{}
-		configMapRequest := reconcile.Request{NamespacedName:types.NamespacedName{
+		configMapRequest := reconcile.Request{NamespacedName: types.NamespacedName{
 			Namespace: instance.Namespace,
 			Name:      instance.Spec.ExcludeDatesConfigMap,
 		}}
@@ -166,7 +166,7 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 			instance.Spec.ExcludeDates = []string{}
 		} else {
 			// if contain excludeDates config
-			if _,ok := configMapFound.Data["excludeDates"];!ok{
+			if _, ok := configMapFound.Data["excludeDates"]; !ok {
 				return reconcile.Result{}, err
 			}
 			var configs []string
@@ -309,11 +309,11 @@ func updateConditions(conditions []v1beta1.Condition, condition v1beta1.Conditio
 	return r
 }
 
-func validateParams(instance *v1beta1.CronHorizontalPodAutoscaler) (bool) {
+func validateParams(instance *v1beta1.CronHorizontalPodAutoscaler) bool {
 	pass := true
 	var errs []error
 	// verify spec params - ExcludeDates
-	validRes,errs:= autoscalingv1beta1.Validate(instance.Spec.ExcludeDates)
+	validRes, errs := autoscalingv1beta1.Validate(instance.Spec.ExcludeDates)
 	if !validRes || errs != nil {
 		log.Errorf("Failed to validate spec.ExcludeDates: %s Errors are: %s ", instance.Spec.ExcludeDates, errs)
 		pass = false
