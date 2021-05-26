@@ -4,9 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis/autoscaling/v1beta1"
 	"github.com/ringtail/go-cron"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 	autoscalingapi "k8s.io/api/autoscaling/v1"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,8 +19,6 @@ import (
 	scaleclient "k8s.io/client-go/scale"
 	log "k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"strings"
-	"time"
 )
 
 const (
@@ -183,12 +184,6 @@ func (ch *CronJobHPA) ScaleHPA() (msg string, err error) {
 	}
 
 	if ch.DesiredSize < *hpa.Spec.MinReplicas {
-		*hpa.Spec.MinReplicas = ch.DesiredSize
-		updateHPA = true
-	}
-
-	//
-	if hpa.Status.CurrentReplicas == *hpa.Spec.MinReplicas && ch.DesiredSize < hpa.Status.CurrentReplicas {
 		*hpa.Spec.MinReplicas = ch.DesiredSize
 		updateHPA = true
 	}
