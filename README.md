@@ -8,7 +8,10 @@
 ## Installation 
 1. install CRD 
 ```$xslt
+# k8s < v1.22
 kubectl apply -f config/crds/autoscaling.alibabacloud.com_cronhorizontalpodautoscalers.yaml
+# k8s >=v1.22
+kubectl apply -f config/crds/autoscaling.alibabacloud.com_cronhorizontalpodautoscalers.v1.22.yaml
 ```
 2. install RBAC settings 
 ```$xslt
