@@ -21,6 +21,7 @@ import (
 	"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis"
 	autoscalingv1beta1 "github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis/autoscaling/v1beta1"
 	"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/controller"
+	"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/options"
 	klog "k8s.io/klog/v2"
 	"net/http"
 	_ "net/http/pprof"
@@ -30,7 +31,9 @@ import (
 )
 
 var (
+	enableNotify         bool
 	enableLeaderElection bool
+	webhook              string
 	pprofAddr            string
 	metricsAddr          string
 )
@@ -38,8 +41,15 @@ var (
 func main() {
 	flag.StringVar(&pprofAddr, "pprof-bind-address", ":6060", "The address the pprof endpoint binds to.")
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
+	flag.StringVar(&webhook, "webhook", "", "Which notify send to.")
+	flag.BoolVar(&enableNotify, "notify switch", false, "Whether to enable notify when expansion.")
 	flag.Parse()
 	klog.Info("Start cronHPA controller.")
+
+	// Initialization Config WithOptions...
+	options.InitializationConfigWithOptions(options.SetWebhook(webhook),
+		options.EnableNotify(enableNotify))
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		LeaderElection:     enableLeaderElection,
 		MetricsBindAddress: metricsAddr,

@@ -1,11 +1,15 @@
 package controller
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	autoscalingv1beta1 "github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis/autoscaling/v1beta1"
 	scalelib "github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/lib"
+	"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/options"
+	"github.com/parnurzeal/gorequest"
 	"github.com/ringtail/go-cron"
+	"html/template"
 	"k8s.io/api/core/v1"
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -27,6 +31,12 @@ const (
 	MaxRetryTimes = 3
 	GCInterval    = 10 * time.Minute
 )
+
+var defaultBodyTemplate = `
+{
+	"JobName": "{{ .Name }}",
+	"Message": "{{ .Message }}""
+}`
 
 type NoNeedUpdate struct{}
 
@@ -155,6 +165,20 @@ func (cm *CronManager) JobResultHandler(js *cron.JobResult) {
 		cm.eventRecorder.Event(instance, v1.EventTypeWarning, "Failed", fmt.Sprintf("Failed to update cronhpa status: %v", err))
 	} else {
 		cm.eventRecorder.Event(instance, eventType, string(state), message)
+		if options.GlobalConfiguration().EnableNotify {
+			go func() {
+				var tpl bytes.Buffer
+				tmpl, _ := template.New("notify").Parse(defaultBodyTemplate)
+				err := tmpl.Execute(&tpl, condition)
+				if err != nil {
+					log.Warningf("Render template failed,because of %v", err)
+				}
+				_, _, errs := gorequest.New().Post(options.GlobalConfiguration().Webhook).Send(tpl.String()).End()
+				if len(errs) > 0 {
+					log.Warningf("failed send message to webhook: %v", errs[0])
+				}
+			}()
+		}
 	}
 }
 

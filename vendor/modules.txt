@@ -56,6 +56,9 @@ github.com/matttproud/golang_protobuf_extensions/pbutil
 github.com/modern-go/concurrent
 # github.com/modern-go/reflect2 v1.0.1
 github.com/modern-go/reflect2
+# github.com/parnurzeal/gorequest v0.2.16
+## explicit
+github.com/parnurzeal/gorequest
 # github.com/pkg/errors v0.9.1
 github.com/pkg/errors
 # github.com/prometheus/client_golang v1.7.1
@@ -78,6 +81,8 @@ github.com/ringtail/go-cron
 # github.com/satori/go.uuid v1.2.0
 ## explicit
 github.com/satori/go.uuid
+# github.com/smartystreets/goconvey v1.7.2
+## explicit
 # github.com/spf13/pflag v1.0.5
 github.com/spf13/pflag
 # golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
@@ -89,6 +94,7 @@ golang.org/x/net/http/httpguts
 golang.org/x/net/http2
 golang.org/x/net/http2/hpack
 golang.org/x/net/idna
+golang.org/x/net/publicsuffix
 # golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 ## explicit
 golang.org/x/oauth2
@@ -343,6 +349,9 @@ k8s.io/utils/buffer
 k8s.io/utils/integer
 k8s.io/utils/pointer
 k8s.io/utils/trace
+# moul.io/http2curl v1.0.0
+## explicit
+moul.io/http2curl
 # sigs.k8s.io/controller-runtime v0.6.2
 ## explicit
 sigs.k8s.io/controller-runtime
