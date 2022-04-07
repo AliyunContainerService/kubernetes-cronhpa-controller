@@ -1,19 +1,21 @@
 # webhook admission controller
 ---
-#apiVersion: v1
-#kind: Service
-#metadata:
-#  name: kubernetes-cronhpa-service
-#  namespace: kube-system
-#  labels:
-#    app: kubernetes-cronhpa-controller
-#    controller-tools.k8s.io: "1.0"
-#spec:
-#  selector:
-#    app: kubernetes-cronhpa-controller
-#    controller-tools.k8s.io: "1.0"
-#  ports:
-#  - port: 443
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubernetes-cronhpa-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ template "fullname" . }}
+    controller-tools.k8s.io: "1.0"
+spec:
+  selector:
+    app: {{ template "fullname" . }}
+    controller-tools.k8s.io: "1.0"
+  ports:
+  - name: metric
+    port: 8080
+
 ---
 apiVersion: apps/v1
 kind: Deployment

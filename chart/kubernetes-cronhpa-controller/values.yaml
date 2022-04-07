@@ -11,3 +11,5 @@ controller:
 global:
   rbac:
     create: true
+servicemonitor:
+  enable: false

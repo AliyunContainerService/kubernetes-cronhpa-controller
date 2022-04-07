@@ -1,0 +1,21 @@
+{{- if  .Values.servicemonitor.enable }}
+# auto discovering and monitoring cronhpa-controller pods by promethues
+# You need apply kube-prometheus(including promethues-operatrer、crds and so on) first in your cluster.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    app: {{ template "fullname" . }}
+    controller-tools.k8s.io: "1.0"
+  name: cronhpa
+  namespace: {{ .Release.Namespace }}
+spec:
+  endpoints:
+    - interval: 60s
+      port: metric
+  selector:
+    matchLabels:
+      app: {{ template "fullname" . }}
+      controller-tools.k8s.io: "1.0"
+
+{{- end }}
