@@ -5,7 +5,7 @@ crds:
   needcreate: true
 
 controller:
-  image: registry.aliyuncs.com/acs/kubernetes-cronhpa-controller:v1.4.0-fc4f6060-aliyun
+  image: registry.aliyuncs.com/acs/kubernetes-cronhpa-controller:v1.4.0-a2f4954d-aliyun
   timezone: "Asia/Shanghai"
 
 global:
