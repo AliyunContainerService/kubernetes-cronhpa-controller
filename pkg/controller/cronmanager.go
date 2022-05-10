@@ -214,11 +214,24 @@ func (cm *CronManager) GC() {
 	cm.Unlock()
 	current := len(cm.jobQueue)
 	log.V(2).Infof("Current active jobs: %d,try to clean up the abandon ones.", current)
+
+	// clean up all metrics
+	KubeSubmittedJobsInCronEngineTotal.Set(0)
+	KubeSuccessfulJobsInCronEngineTotal.Set(0)
+	KubeFailedJobsInCronEngineTotal.Set(0)
+	KubeExpiredJobsInCronEngineTotal.Set(0)
+
 	for _, job := range m {
 		hpa := job.(*CronJobHPA).HPARef
 		if !cm.cronExecutor.FindJob(job) {
-			log.Warningf("Failed to found job %s of cronHPA %s in %s in cron engine and resubmit the job.", job.Name(), hpa.Name, hpa.Namespace)
+			log.Warningf("Failed to find job %s of cronHPA %s in %s in cron engine and resubmit the job.", job.Name(), hpa.Name, hpa.Namespace)
 			cm.cronExecutor.AddJob(job)
+
+			// metrics update
+			// when one job is not in cron engine but in crd.
+			// That means the job is failed and need to be resubmitted.
+			KubeFailedJobsInCronEngineTotal.Add(1)
+			KubeSubmittedJobsInCronEngineTotal.Add(1)
 			continue
 		} else {
 			instance := &autoscalingv1beta1.CronHorizontalPodAutoscaler{}
@@ -233,11 +246,40 @@ func (cm *CronManager) GC() {
 						continue
 					}
 					cm.delete(job.ID())
+					// metrics update
+					// when a job is in cron engine but not in crd.
+					// that means the job has been expired and need to be clean up.
+					KubeExpiredJobsInCronEngineTotal.Add(1)
+				}
+
+				// metrics update
+				// ignore other errors
+			}
+			conditions := instance.Status.Conditions
+			for _, c := range conditions {
+				if c.JobId != job.ID() {
+					continue
+				}
+				switch c.State {
+				case autoscalingv1beta1.Succeed:
+					KubeSuccessfulJobsInCronEngineTotal.Add(1)
+				case autoscalingv1beta1.Failed:
+					KubeFailedJobsInCronEngineTotal.Add(1)
+				case autoscalingv1beta1.Submitted:
+					KubeSubmittedJobsInCronEngineTotal.Add(1)
+				default:
+					KubeSubmittedJobsInCronEngineTotal.Add(1)
 				}
 			}
+
 		}
 	}
 	left := len(cm.jobQueue)
+
+	// metrics update
+	// set total jobs in cron engine
+	KubeJobsInCronEngineTotal.Set(float64(left))
+
 	log.V(2).Infof("Current active jobs: %d, clean up %d jobs.", left, current-left)
 }
 
