@@ -261,9 +261,39 @@ The cronhpa job spec need three fields:
     excludeDates:
     - "* * * 15 11 *"
   ```
+## Metrics and Monitoring 
+`kubernetes-cronhpa-controller` export metrics through prometheus metrics format. Here are core metrics list.
+```prom
+# HELP kube_expired_jobs_in_cron_engine_total Expired jobs in queue of Cron Engine
+# TYPE kube_expired_jobs_in_cron_engine_total gauge
+kube_expired_jobs_in_cron_engine_total 0
+
+# HELP kube_failed_jobs_in_cron_engine_total Failed jobs in queue of Cron Engine
+# TYPE kube_failed_jobs_in_cron_engine_total gauge
+kube_failed_jobs_in_cron_engine_total 0
+
+HELP kube_jobs_in_cron_engine_total Jobs in queue of Cron Engine
+# TYPE kube_jobs_in_cron_engine_total gauge
+kube_jobs_in_cron_engine_total 2
+
+# HELP kube_submitted_jobs_in_cron_engine_total Submitted jobs in queue of Cron Engine
+# TYPE kube_submitted_jobs_in_cron_engine_total gauge
+kube_submitted_jobs_in_cron_engine_total 0
+
+# HELP kube_successful_jobs_in_cron_engine_total Successful jobs in queue of Cron Engine
+# TYPE kube_successful_jobs_in_cron_engine_total gauge
+kube_successful_jobs_in_cron_engine_total 2
+```
+
+In most of kubernetes cluster. 
+```
+kube_jobs_in_cron_engine_total = kube_failed_jobs_in_cron_engine_total + kube_submitted_jobs_in_cron_engine_total + kube_successful_jobs_in_cron_engine_total.
+```
+Expired jobs are in unique state when cron engine have exceptions. So `kube_failed_jobs_in_cron_engine_total` and `kube_expired_jobs_in_cron_engine_total` are two key metrics to monitor.
+
 
 ## Common Question  
-* Cloud `kubernetes-cronhpa-controller` and HPA work together?       
+* Could `kubernetes-cronhpa-controller` and HPA work together?       
 Yes and no is the answer. `kubernetes-cronhpa-controller` can work together with hpa. But if the desired replicas is independent. So when the HPA min replicas reached `kubernetes-cronhpa-controller` will ignore the replicas and scale down and later the HPA controller will scale it up.
 
 ## Contributing
