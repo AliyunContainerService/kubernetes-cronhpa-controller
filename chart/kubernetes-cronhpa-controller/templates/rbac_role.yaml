@@ -27,8 +27,11 @@ rules:
       - list
       - watch
       - update
-  - apiGroups: [""]
-    resources: ["events"]
+  - apiGroups:
+      - ""
+    resources:
+      - "configmaps"
+      - "events"
     verbs:
       - get
       - list
