@@ -187,6 +187,7 @@ func (cm *CronManager) Run(stopChan chan struct{}) {
 	cm.cronExecutor.Run()
 	cm.gcLoop()
 	<-stopChan
+	log.Infof("cm to stop executor")
 	cm.cronExecutor.Stop()
 }
 
@@ -197,7 +198,7 @@ func (cm *CronManager) gcLoop() {
 		for {
 			select {
 			case <-ticker.C:
-				log.V(2).Infof("GC loop started every %v", GCInterval)
+				log.Infof("GC loop started every %v", GCInterval)
 				cm.GC()
 			}
 		}
@@ -206,6 +207,7 @@ func (cm *CronManager) gcLoop() {
 
 // GC will collect all jobs which ref is not exists and recycle.
 func (cm *CronManager) GC() {
+	log.Infof("Starting GC")
 	m := make(map[string]CronJob)
 	cm.Lock()
 	for k, v := range cm.jobQueue {
@@ -220,6 +222,8 @@ func (cm *CronManager) GC() {
 	KubeSuccessfulJobsInCronEngineTotal.Set(0)
 	KubeFailedJobsInCronEngineTotal.Set(0)
 	KubeExpiredJobsInCronEngineTotal.Set(0)
+
+	cm.cronExecutor.ReDoMissingJobs(m)
 
 	for _, job := range m {
 		hpa := job.(*CronJobHPA).HPARef
@@ -240,6 +244,7 @@ func (cm *CronManager) GC() {
 				Name:      hpa.Name,
 			}, instance); err != nil {
 				if errors.IsNotFound(err) {
+					log.Warningf("to remove job %s", job.Name())
 					err := cm.cronExecutor.RemoveJob(job)
 					if err != nil {
 						log.Errorf("Failed to gc job %s of cronHPA %s in %s namespace", job.Name(), hpa.Name, hpa.Namespace)

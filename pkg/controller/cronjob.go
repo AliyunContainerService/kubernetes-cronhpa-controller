@@ -113,6 +113,7 @@ func (ch *CronJobHPA) Run() (msg string, err error) {
 		}
 
 		// hpa compatible
+		log.Infof("to do job %s scale %s %s in %s namespace to %d after retrying %d times,because of %v", ch.name, ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.TargetRef.RefNamespace, ch.DesiredSize, times, err)
 		if ch.TargetRef.RefKind == "HorizontalPodAutoscaler" {
 			msg, err = ch.ScaleHPA()
 			if err == nil {
@@ -239,7 +240,7 @@ func (ch *CronJobHPA) ScalePlainRef() (msg string, err error) {
 		scale, err = ch.scaler.Scales(ch.TargetRef.RefNamespace).Get(context.Background(), targetGR, ch.TargetRef.RefName, v1.GetOptions{})
 		if err == nil {
 			found = true
-			log.Infof("%s %s in namespace %s has been scaled successfully. job: %s replicas: %d", ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.TargetRef.RefNamespace, ch.Name(), ch.DesiredSize)
+			log.Infof("%s %s in namespace %s has been got. replicas: %d", ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.TargetRef.RefNamespace, scale.Spec.Replicas)
 			break
 		}
 	}
@@ -256,6 +257,7 @@ func (ch *CronJobHPA) ScalePlainRef() (msg string, err error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to scale %s %s in %s namespace to %d, because of %v", ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.TargetRef.RefNamespace, ch.DesiredSize, err)
 	}
+	log.Infof("%s %s in namespace %s has been scaled successfully. job: %s replicas: %d", ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.TargetRef.RefNamespace, ch.Name(), ch.DesiredSize)
 	return msg, nil
 }
 

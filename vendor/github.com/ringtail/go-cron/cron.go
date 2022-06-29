@@ -62,13 +62,13 @@ type Entry struct {
 	Job Job
 }
 
-// byTime is a wrapper for sorting the entry array by time
+// ByTime is a wrapper for sorting the entry array by time
 // (with zero time at the end).
-type byTime []*Entry
+type ByTime []*Entry
 
-func (s byTime) Len() int      { return len(s) }
-func (s byTime) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
-func (s byTime) Less(i, j int) bool {
+func (s ByTime) Len() int      { return len(s) }
+func (s ByTime) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+func (s ByTime) Less(i, j int) bool {
 	// Two zero times should return false.
 	// Otherwise, zero is "greater" than any other time.
 	// (To sort it at the end of the list.)
@@ -189,6 +189,7 @@ func (c *Cron) runWithRecovery(j Job) {
 	}()
 
 	msg, err := j.Run()
+	c.logf("did job id %s with msg %s err %++v", j.ID(), msg, err)
 
 	js := &JobResult{
 		JobId: j.ID(),
@@ -209,10 +210,9 @@ func (c *Cron) run() {
 	}
 
 	for {
-
 		c.sortedEntries = mapToArray(c.entries)
 		// Determine the next entry to run.
-		sort.Sort(byTime(c.sortedEntries))
+		sort.Sort(ByTime(c.sortedEntries))
 
 		var timer *time.Timer
 		if len(c.sortedEntries) == 0 || c.sortedEntries[0].Next.IsZero() {
@@ -221,6 +221,7 @@ func (c *Cron) run() {
 			timer = time.NewTimer(100000 * time.Hour)
 		} else {
 			timer = time.NewTimer(c.sortedEntries[0].Next.Sub(now))
+			c.logf("new timer Nexit is %v, now is %v,try to wait %v",c.sortedEntries[0].Next, now, c.sortedEntries[0].Next.Sub(now))
 		}
 
 		for {
@@ -230,8 +231,10 @@ func (c *Cron) run() {
 				// Run every entry whose next time was less than now
 				for _, e := range c.sortedEntries {
 					if e.Next.After(now) || e.Next.IsZero() {
+						c.logf("job %s Next is %v after now  %s is %t, is zero %t", e.Job.ID(), e.Next, now,e.Next.After(now), e.Next.IsZero())
 						break
 					}
+					c.logf("to runWithRecovery job id %s, next %v", e.Job.ID(), e.Next)
 					go c.runWithRecovery(e.Job)
 					e.Prev = e.Next
 					e.Next = e.Schedule.Next(now)
