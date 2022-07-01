@@ -14,13 +14,17 @@ type CronConfig struct {
 	Timezone *time.Location
 }
 
+type FailedFindJobReason string
+
+const JobTimeOut = FailedFindJobReason("JobTimeOut")
+
 type CronExecutor interface {
 	Run()
 	Stop()
 	AddJob(job CronJob) error
 	Update(job CronJob) error
 	RemoveJob(job CronJob) error
-	FindJob(job CronJob) bool
+	FindJob(job CronJob) (bool, FailedFindJobReason)
 	ListEntries() []*cron.Entry
 }
 
@@ -41,18 +45,19 @@ func (ce *CronHPAExecutor) ListEntries() []*cron.Entry {
 	return entries
 }
 
-func (ce *CronHPAExecutor) FindJob(job CronJob) bool {
+func (ce *CronHPAExecutor) FindJob(job CronJob) (bool, FailedFindJobReason) {
 	entries := ce.Engine.Entries()
 	for _, e := range entries {
 		if e.Job.ID() == job.ID() {
 			// clean up out of date jobs when it reach maxOutOfDateTimeout
 			if e.Next.Add(maxOutOfDateTimeout).After(time.Now()) {
-				return true
+				return true, ""
 			}
 			log.Warningf("The job %s is out of date and need to be clean up.", job.Name())
+			return false, JobTimeOut
 		}
 	}
-	return false
+	return false, ""
 }
 
 func (ce *CronHPAExecutor) Update(job CronJob) error {

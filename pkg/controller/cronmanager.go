@@ -197,7 +197,7 @@ func (cm *CronManager) gcLoop() {
 		for {
 			select {
 			case <-ticker.C:
-				log.V(2).Infof("GC loop started every %v", GCInterval)
+				log.Infof("GC loop started every %v", GCInterval)
 				cm.GC()
 			}
 		}
@@ -206,6 +206,7 @@ func (cm *CronManager) gcLoop() {
 
 // GC will collect all jobs which ref is not exists and recycle.
 func (cm *CronManager) GC() {
+	log.Infof("Start GC")
 	m := make(map[string]CronJob)
 	cm.Lock()
 	for k, v := range cm.jobQueue {
@@ -223,7 +224,23 @@ func (cm *CronManager) GC() {
 
 	for _, job := range m {
 		hpa := job.(*CronJobHPA).HPARef
-		if !cm.cronExecutor.FindJob(job) {
+		found, reason := cm.cronExecutor.FindJob(job)
+		if !found {
+			if reason == JobTimeOut {
+				instance := &autoscalingv1beta1.CronHorizontalPodAutoscaler{}
+				if err := cm.client.Get(context.Background(), types.NamespacedName{
+					Namespace: hpa.Namespace,
+					Name:      hpa.Name,
+				}, instance); err != nil {
+					log.Errorf("Failed to run time out job %s  due to failed to get cronHPA %s in %s namespace,err: %v", job.Name(), hpa.Name, hpa.Namespace, err)
+					continue
+				}
+				cm.eventRecorder.Event(instance, v1.EventTypeWarning, "OutOfDate", fmt.Sprintf("rerun out of date job: %s", job.Name()))
+				if msg, reRunErr := job.Run(); reRunErr != nil {
+					log.Errorf("failed to rerun out of date job %s, msg:%s, err %v", job.Name(), msg, reRunErr)
+				}
+			}
+
 			log.Warningf("Failed to find job %s of cronHPA %s in %s in cron engine and resubmit the job.", job.Name(), hpa.Name, hpa.Namespace)
 			cm.cronExecutor.AddJob(job)
 
@@ -240,6 +257,7 @@ func (cm *CronManager) GC() {
 				Name:      hpa.Name,
 			}, instance); err != nil {
 				if errors.IsNotFound(err) {
+					log.Infof("remove job %s of cronHPA %s in %s namespace", job.Name(), hpa.Name, hpa.Namespace)
 					err := cm.cronExecutor.RemoveJob(job)
 					if err != nil {
 						log.Errorf("Failed to gc job %s of cronHPA %s in %s namespace", job.Name(), hpa.Name, hpa.Namespace)
