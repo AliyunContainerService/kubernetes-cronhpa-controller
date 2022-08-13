@@ -104,6 +104,12 @@ func (ch *CronJobHPA) Run() (msg string, err error) {
 
 	startTime := time.Now()
 	times := 0
+
+	// Skip the cronjob, if cron mode is disable
+	if ch.HPARef.Spec.CronMode == v1beta1.CronDisableMode {
+		return "skip scaling activity, cron mode is disable", nil
+	}
+
 	for {
 		now := time.Now()
 

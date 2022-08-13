@@ -28,6 +28,12 @@ spec:
           type: object
         spec:
           properties:
+            cronMode:
+              default: Enable
+              enum:
+              - Enable
+              - Disable
+              type: string
             excludeDates:
               items:
                 type: string
@@ -100,6 +106,8 @@ spec:
                 - targetSize
                 type: object
               type: array
+            cronMode:
+              type: string
             excludeDates:
               items:
                 type: string

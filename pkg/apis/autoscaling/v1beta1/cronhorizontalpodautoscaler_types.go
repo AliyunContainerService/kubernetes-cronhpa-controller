@@ -30,7 +30,20 @@ type CronHorizontalPodAutoscalerSpec struct {
 	ExcludeDates   []string       `json:"excludeDates,omitempty"`
 	ScaleTargetRef ScaleTargetRef `json:"scaleTargetRef"`
 	Jobs           []Job          `json:"jobs"`
+	//  CronMode set cron mode, one of Enable,Disable
+	// +optional
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Enum=Enable;Disable
+	// +kubebuilder:default=Enable
+	CronMode CronMode `json:"cronMode"`
 }
+
+type CronMode string
+
+const (
+	CronEnableMode  CronMode = "Enable"
+	CronDisableMode CronMode = "Disable"
+)
 
 type Job struct {
 	Name     string `json:"name"`
@@ -82,6 +95,7 @@ type CronHorizontalPodAutoscalerStatus struct {
 	ExcludeDates   []string       `json:"excludeDates,omitempty"`
 	// Important: Run "make" to regenerate code after modifying this file
 	Conditions []Condition `json:"conditions,omitempty"`
+	CronMode   CronMode    `json:"cronMode,omitempty"`
 }
 
 // +kubebuilder:object:root=true
