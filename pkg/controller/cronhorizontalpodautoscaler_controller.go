@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	log "k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -36,6 +37,8 @@ import (
 * USER ACTION REQUIRED: This is a scaffold file intended for the user to modify with their own Controller
 * business logic.  Delete these comments after modifying this file.*
  */
+
+const UpdateRetryTime = 3
 
 // newReconciler returns a new reconcile.Reconciler
 func NewReconciler(mgr manager.Manager) reconcile.Reconciler {
@@ -98,9 +101,10 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 				log.Errorf("Failed to delete job %s,because of %v", cJob.Name, err)
 			}
 		}
-		// update scaleTargetRef and excludeDates
+		// update scaleTargetRef 、 excludeDates 、 cronMode
 		instance.Status.ScaleTargetRef = instance.Spec.ScaleTargetRef
 		instance.Status.ExcludeDates = instance.Spec.ExcludeDates
+		instance.Status.CronMode = instance.Spec.CronMode
 	} else {
 		// check status and delete the expired job
 		for _, cJob := range conditions {
@@ -192,7 +196,7 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 	}
 	// conditions doesn't changed and no need to update.
 	if !noNeedUpdateStatus || len(leftConditions) != len(conditions) {
-		err := r.Update(context.Background(), instance)
+		err = r.retryUpdateCronHpaStatus(context.TODO(), request.NamespacedName, instance)
 		if err != nil {
 			log.Errorf("Failed to update cron hpa %s status,because of %v", instance.Name, err)
 		}
@@ -200,6 +204,24 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 
 	//log.Infof("%v has been handled completely.", instance)
 	return reconcile.Result{}, nil
+}
+
+// retryUpdateCronHpaStatus retry update cronhpa status if update failed
+func (r *ReconcileCronHorizontalPodAutoscaler) retryUpdateCronHpaStatus(ctx context.Context, nsName types.NamespacedName, instance *autoscalingv1beta1.CronHorizontalPodAutoscaler) error {
+	var err error
+	var cronHpa autoscalingv1beta1.CronHorizontalPodAutoscaler
+	for i := 0; i < UpdateRetryTime; i++ {
+		err = r.Get(ctx, nsName, &cronHpa)
+		if err != nil {
+			continue
+		}
+		cronHpa.Status = *instance.Status.DeepCopy()
+		err = r.Update(ctx, &cronHpa)
+		if err == nil {
+			return nil
+		}
+	}
+	return err
 }
 
 func convertConditionMaps(conditions []v1beta1.Condition) map[string]v1beta1.Condition {
@@ -224,6 +246,10 @@ func updateConditions(conditions []v1beta1.Condition, condition v1beta1.Conditio
 func checkGlobalParamsChanges(status v1beta1.CronHorizontalPodAutoscalerStatus, spec v1beta1.CronHorizontalPodAutoscalerSpec) bool {
 	if &status.ScaleTargetRef != nil && (status.ScaleTargetRef.Kind != spec.ScaleTargetRef.Kind || status.ScaleTargetRef.ApiVersion != spec.ScaleTargetRef.ApiVersion ||
 		status.ScaleTargetRef.Name != spec.ScaleTargetRef.Name) {
+		return true
+	}
+
+	if status.CronMode != spec.CronMode {
 		return true
 	}
 
