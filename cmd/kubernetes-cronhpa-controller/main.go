@@ -42,6 +42,7 @@ func main() {
 	klog.Info("Start cronHPA controller.")
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		LeaderElection:     enableLeaderElection,
+		LeaderElectionID:   "kubernetes-cronhpa-controller",
 		MetricsBindAddress: metricsAddr,
 	})
 	if err != nil {
