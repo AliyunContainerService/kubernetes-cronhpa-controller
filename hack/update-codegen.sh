@@ -1,8 +1,15 @@
 #!/usr/bin/env bash
 
-ROOT_PACKAGE="github.com/AliyunContainerService/kubernetes-cronhpa-controller"
-GO111MODULE=off
-# 安装k8s.io/code-generator
-[[ -d $GOPATH/src/k8s.io/code-generator ]] || go get -u k8s.io/code-generator/...
+set -o errexit
+set -o nounset
+set -o pipefail
 
-$GOPATH/src/k8s.io/code-generator/generate-groups.sh all "${ROOT_PACKAGE}/pkg/client" "${ROOT_PACKAGE}/pkg/apis" "autoscaling:v1beta1"
+SCRIPT_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
+
+CODEGEN_PKG=${CODEGEN_PKG:-$(cd "${SCRIPT_ROOT}"; ls -d -1 ./vendor/k8s.io/code-generator 2>/dev/null || echo ../code-generator)}
+
+bash "${CODEGEN_PKG}"/generate-groups.sh "deepcopy,client,informer,lister" \
+  github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/client github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis \
+  autoscaling:v1beta1 \
+  --output-base "${SCRIPT_ROOT}"/../../.. \
+  --go-header-file "${SCRIPT_ROOT}"/hack/boilerplate.go.txt

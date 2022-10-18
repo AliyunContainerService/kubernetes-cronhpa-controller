@@ -84,6 +84,10 @@ type CronHorizontalPodAutoscalerStatus struct {
 	Conditions []Condition `json:"conditions,omitempty"`
 }
 
+// +genclient
+// +genclient:noStatus
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:shortName=cronhpa
 // CronHorizontalPodAutoscaler is the Schema for the cronhorizontalpodautoscalers API
@@ -94,6 +98,8 @@ type CronHorizontalPodAutoscaler struct {
 	Spec   CronHorizontalPodAutoscalerSpec   `json:"spec,omitempty"`
 	Status CronHorizontalPodAutoscalerStatus `json:"status,omitempty"`
 }
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // +kubebuilder:object:root=true
 // CronHorizontalPodAutoscalerList contains a list of CronHorizontalPodAutoscaler
