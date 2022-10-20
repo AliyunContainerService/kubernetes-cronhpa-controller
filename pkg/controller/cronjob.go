@@ -199,7 +199,7 @@ func (ch *CronJobHPA) ScaleHPA() (msg string, err error) {
 	}
 
 	if updateHPA {
-		err = ch.client.Update(ctx, hpa)
+		err = ch.UpdateHpa(ctx, hpa)
 		if err != nil {
 			return "", err
 		}
@@ -218,6 +218,21 @@ func (ch *CronJobHPA) ScaleHPA() (msg string, err error) {
 		return "", fmt.Errorf("failed to scale %s %s in %s namespace to %d, because of %v", ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.TargetRef.RefNamespace, ch.DesiredSize, err)
 	}
 	return msg, nil
+}
+
+func (ch *CronJobHPA) UpdateHpa(ctx context.Context, targetHpa *autoscalingapi.HorizontalPodAutoscaler) error {
+	oldHpa := &autoscalingapi.HorizontalPodAutoscaler{}
+	err := ch.client.Get(ctx, types.NamespacedName{Namespace: ch.HPARef.Namespace, Name: ch.TargetRef.RefName}, oldHpa)
+	if err != nil {
+		return fmt.Errorf("Failed to get HorizontalPodAutoscaler Ref,because of %v", err)
+	}
+	oldHpa.Spec.MaxReplicas = targetHpa.Spec.MaxReplicas
+	*oldHpa.Spec.MinReplicas = *targetHpa.Spec.MinReplicas
+	err = ch.client.Update(ctx, oldHpa)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (ch *CronJobHPA) ScalePlainRef() (msg string, err error) {
