@@ -18,10 +18,10 @@ package lib
 
 import (
 	"fmt"
-	autoscalingv1beta1 "github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis/autoscaling/v1beta1"
-	"k8s.io/client-go/scale"
 	"strings"
 	"sync"
+
+	"k8s.io/client-go/scale"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -35,6 +35,8 @@ import (
 	scaleautoscaling "k8s.io/client-go/scale/scheme/autoscalingv1"
 	scaleextint "k8s.io/client-go/scale/scheme/extensionsint"
 	scaleext "k8s.io/client-go/scale/scheme/extensionsv1beta1"
+
+	autoscalingv1beta1 "github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis/autoscaling/v1beta1"
 )
 
 // discoveryScaleResolver is a ScaleKindResolver that uses

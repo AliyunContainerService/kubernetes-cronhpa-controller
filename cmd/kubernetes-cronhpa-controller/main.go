@@ -18,15 +18,17 @@ package main
 
 import (
 	"flag"
-	"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis"
-	autoscalingv1beta1 "github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis/autoscaling/v1beta1"
-	"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/controller"
-	klog "k8s.io/klog/v2"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+
+	klog "k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/runtime/signals"
+	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
+
+	"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis"
+	autoscalingv1beta1 "github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis/autoscaling/v1beta1"
+	"github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/controller"
 )
 
 var (

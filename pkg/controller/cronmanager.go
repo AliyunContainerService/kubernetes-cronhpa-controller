@@ -3,10 +3,11 @@ package controller
 import (
 	"context"
 	"fmt"
-	autoscalingv1beta1 "github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis/autoscaling/v1beta1"
-	scalelib "github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/lib"
+	"sync"
+	"time"
+
 	"github.com/ringtail/go-cron"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -19,8 +20,9 @@ import (
 	"k8s.io/client-go/tools/record"
 	log "k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sync"
-	"time"
+
+	autoscalingv1beta1 "github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/apis/autoscaling/v1beta1"
+	scalelib "github.com/AliyunContainerService/kubernetes-cronhpa-controller/pkg/lib"
 )
 
 const (

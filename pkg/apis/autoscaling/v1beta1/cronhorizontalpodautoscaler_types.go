@@ -84,6 +84,7 @@ type CronHorizontalPodAutoscalerStatus struct {
 	Conditions []Condition `json:"conditions,omitempty"`
 }
 
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:shortName=cronhpa
 // CronHorizontalPodAutoscaler is the Schema for the cronhorizontalpodautoscalers API
@@ -95,14 +96,11 @@ type CronHorizontalPodAutoscaler struct {
 	Status CronHorizontalPodAutoscalerStatus `json:"status,omitempty"`
 }
 
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true
 // CronHorizontalPodAutoscalerList contains a list of CronHorizontalPodAutoscaler
 type CronHorizontalPodAutoscalerList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []CronHorizontalPodAutoscaler `json:"items"`
-}
-
-func init() {
-	SchemeBuilder.Register(&CronHorizontalPodAutoscaler{}, &CronHorizontalPodAutoscalerList{})
 }
