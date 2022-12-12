@@ -1,0 +1,14 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ template "fullname" . }}
+spec:
+  selector:
+    app: {{ template "fullname" . }}
+  ports:
+  - name: metric
+    port: 8080
