@@ -1,0 +1,30 @@
+name: Push helm charts
+
+on:
+  push:
+    branches:
+    - master
+    tags:
+      - v*
+
+env:
+  APP_NAME: kubernetes-cronhpa-controller
+  REPO: ghcr.io/daocloud/kubernetes-cronhpa-controller
+jobs:
+  main:
+    # 在 Ubuntu 上运行
+    runs-on: ubuntu-latest
+    steps:
+      # git checkout 代码
+      - name: Checkout
+        uses: actions/checkout@v2
+      # 通过 git 命令获取当前 tag 信息, 存入环境变量 APP_VERSION
+      - name: Generate Chart Version
+        run: echo CHART_VERSION=`git describe --tags --always | sed  's/^v//g'` >> $GITHUB_ENV
+      - name: Push chart to charts
+        run: |
+          echo ${{ env.CHART_VERSION }}
+          helm repo add release ${{ secrets.REGISTRY }}
+          helm dep up ./charts
+          helm package ./charts/ -d dist --version ${{ env.CHART_VERSION }}
+          helm cm-push ./dist/${{ env.APP_NAME }}-${{ env.CHART_VERSION }}.tgz  ${{ env.APP_NAME }} -a ${{ env.CHART_VERSION }} -v ${{ env.CHART_VERSION }} -u ${{ secrets.REGISTRY_USER_NAME }}  -p ${{ secrets.REGISTRY_PASSWORD }}
