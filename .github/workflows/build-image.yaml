@@ -1,6 +1,5 @@
 name: Build Docker Image
 
-# push tag 时触发执行
 on:
   push:
     branches:
@@ -8,12 +7,8 @@ on:
     tags:
       - v*
 
-# 定义环境变量, 后面会使用
-# 定义 APP_NAME 用于 docker build-args
-# 定义 DOCKERHUB_REPO 标记 docker hub repo 名称
 env:
-  APP_NAME: kubernetes-cronhpa-controller
-  REPO: ghcr.io/cleverhu/kubernetes-cronhpa-controller
+  REPO: ghcr.io/daocloud/kubernetes-cronhpa-controller
 jobs:
   main:
     # 在 Ubuntu 上运行
@@ -32,13 +27,10 @@ jobs:
       - name: Login to DockerHub
         uses: docker/login-action@v2
         with:
-          # GitHub Repo => Settings => Secrets 增加 docker hub 登录密钥信息
-          # DOCKERHUB_USERNAME 是 docker hub 账号名.
-          # DOCKERHUB_TOKEN: docker hub => Account Setting => Security 创建.
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GH_TOKEN }}
-      # # 通过 git 命令获取当前 tag 信息, 存入环境变量 APP_VERSION
+      # 通过 git 命令获取当前 tag 信息, 存入环境变量 APP_VERSION
       - name: Generate App Version
         run: echo APP_VERSION=`git describe --tags --always` >> $GITHUB_ENV
       # 构建 Docker 并推送到 Docker hub
@@ -54,7 +46,6 @@ jobs:
             linux/arm64
           # docker build arg, 注入 APP_NAME/APP_VERSION
           build-args: |
-            APP_NAME=${{ env.APP_NAME }}
             APP_VERSION=${{ env.APP_VERSION }}
           # 生成两个 docker tag: ${APP_VERSION} 和 latest
           tags: |
