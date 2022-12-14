@@ -1,0 +1,35 @@
+{{- if  .Values.cleanup.cleanupCustomResource }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-cronhpa-cleanup
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": pre-delete
+    "helm.sh/hook-weight": "1"
+    "helm.sh/hook-delete-policy": hook-succeeded,hook-failed
+  labels:
+    app: cronhpa-cleanup
+spec:
+  template:
+    metadata:
+      name: cronhpa-cleanup
+      labels:
+        app: cronhpa-cleanup
+    spec:
+    {{- if .Values.global.rbac.create }}
+      serviceAccountName: {{ .Release.Name }}
+    {{- end }}
+      containers:
+        - name: kubectl
+          image: {{ template "cleanup.image" . }}
+          imagePullPolicy: IfNotPresent
+          command:
+          - /bin/sh
+          - -c
+          - >
+              kubectl delete cronhpa --all;
+              sleep 1;
+              kubectl delete crd cronhorizontalpodautoscalers.autoscaling.alibabacloud.com;
+      restartPolicy: Never
+{{- end }}

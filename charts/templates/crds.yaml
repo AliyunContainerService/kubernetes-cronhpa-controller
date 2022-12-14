@@ -1,0 +1,7 @@
+{{- if .Values.crds.needcreate }}
+{{- if semverCompare "<1.19-0" (include "common.capabilities.kubeVersion" .) -}}
+{{ .Files.Get "_crds/autoscaling.alibabacloud.com_cronhorizontalpodautoscalers.yaml" }}
+{{- else -}}
+{{ .Files.Get  "_crds/autoscaling.alibabacloud.com_cronhorizontalpodautoscalers.v1.22.yaml" }}
+{{- end -}}
+{{- end }}

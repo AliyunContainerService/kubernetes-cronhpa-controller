@@ -1,0 +1,5 @@
+# controller
+- "{{ .controller.image.registry }}/{{ .controller.image.repository }}:{{ .controller.image.tag }}"
+
+# cleanup
+- "{{ .cleanup.image.registry }}/{{ .cleanup.image.repository }}:{{ .cleanup.image.tag }}"

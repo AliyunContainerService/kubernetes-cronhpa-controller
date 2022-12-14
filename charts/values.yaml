@@ -1,0 +1,55 @@
+## @param kubeVersion Force target Kubernetes version (using Helm capabilities if not set)
+##
+kubeVersion: ""
+
+global:
+  ## @param global.imageRegistry Global Docker image registry
+  ##
+  imageRegistry: ""
+  ## Role Based Access
+  ## Ref: https://kubernetes.io/docs/admin/authorization/rbac/
+  ## @param global.rbac.create Create ClusterRole and ClusterRoleBinding
+  ##
+  rbac:
+    create: true
+
+controller:
+  ## @param controller.image.registry Controller image registry
+  ## @param controller.image.repository Controller image repository
+  ## @param controller.image.tag Controller image tag (immutable tags are recommended)
+  ## @param controller.image.pullPolicy Controller image pull policy
+  ##
+  image: 
+    registry: ghcr.io
+    repository: daocloud/kubernetes-cronhpa-controller
+    tag: "v1.3.0"
+    pullPolicy: IfNotPresent
+  
+  ## @param controller.timezone Timezone in controller pod
+  ##
+  timezone: "Asia/Shanghai"
+
+crds:
+  ## @param crds.needcreate Flag to install cronhpa CRDs
+  ##
+  needcreate: true
+
+servicemonitor:
+  ## @param servicemonitor.enable Enable service monitor
+  ##
+  enable: false
+
+cleanup:
+  ## @param clean.cleanupCustomResource Flag to cleanup all cronhpa cr when uninstall
+  ##
+  cleanupCustomResource: false
+  ## @param cleanup.image.registry Cleanup job image registry
+  ## @param cleanup.image.repository Cleanup job image repository
+  ## @param cleanup.image.tag Cleanup job image tag (immutable tags are recommended)
+  ## @param cleanup.image.pullPolicy Cleanup job image pull policy
+  ##
+  image:
+    registry: ghcr.io
+    repository: cloudtty/cloudshell
+    tag: "v0.5.0"
+    pullPolicy: IfNotPresent
