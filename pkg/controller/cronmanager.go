@@ -241,9 +241,12 @@ func (cm *CronManager) GC() {
 				}
 			}
 
-			log.Warningf("Failed to find job %s of cronHPA %s in %s in cron engine and resubmit the job.", job.Name(), hpa.Name, hpa.Namespace)
-			cm.cronExecutor.AddJob(job)
-
+			cm.Lock()
+			if _, ok := cm.jobQueue[job.ID()]; ok {
+				log.Warningf("Failed to find job %s of cronHPA %s in %s in cron engine and resubmit the job.", job.Name(), hpa.Name, hpa.Namespace)
+				cm.cronExecutor.AddJob(job)
+			}
+			cm.Unlock()
 			// metrics update
 			// when one job is not in cron engine but in crd.
 			// That means the job is failed and need to be resubmitted.
