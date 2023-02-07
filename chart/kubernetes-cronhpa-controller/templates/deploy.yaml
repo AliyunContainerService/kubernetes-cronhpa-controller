@@ -26,6 +26,7 @@ metadata:
     app: {{ template "fullname" . }}
     controller-tools.k8s.io: "1.0"
 spec:
+  replicas: {{ .Values.controller.replicas }}
   selector:
     matchLabels:
       app: {{ template "fullname" . }}
@@ -38,16 +39,34 @@ spec:
     spec:
       containers:
       - image: {{ .Values.controller.image }}
+        command:
+        - /bin/sh
+        - '-c'
+        - /root/kubernetes-cronhpa-controller --enableLeaderElection=true
         env:
         - name: TZ
           value: {{ .Values.controller.timezone }}
         imagePullPolicy: Always
         name: kubernetes-cronhpa-controller
         resources:
-          limits:
-            cpu: 100m
-            memory: 100Mi
-          requests:
-            cpu: 100m
-            memory: 100Mi
+          {{- toYaml .Values.controller.resources | nindent 10 }}
       serviceAccount: kubernetes-cronhpa-controller
+      {{- with .Values.controller.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.controller.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.controller.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+      {{- with .Values.controller.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+

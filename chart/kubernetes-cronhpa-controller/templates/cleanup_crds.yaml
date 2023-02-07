@@ -22,7 +22,7 @@ spec:
     {{- end }}
       containers:
         - name: kubectl
-          image: registry.cn-beijing.aliyuncs.com/acs/hyperkube:v1.12.1
+          image: {{ .Values.cleanup.image }}
           imagePullPolicy: IfNotPresent
           command:
           - /bin/sh

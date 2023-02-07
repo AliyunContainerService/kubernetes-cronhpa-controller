@@ -1,5 +1,6 @@
 cleanup:
   cleanupCustomResource: false
+  image: registry.cn-beijing.aliyuncs.com/acs/hyperkube:v1.12.1
 
 crds:
   needcreate: true
@@ -7,6 +8,38 @@ crds:
 controller:
   image: registry.aliyuncs.com/acs/kubernetes-cronhpa-controller:v1.4.1-b8cd52c-aliyun
   timezone: "Asia/Shanghai"
+  replicas: 1
+  resources:
+    limits:
+      cpu: 100m
+      memory: 100Mi
+    requests:
+      cpu: 100m
+      memory: 100Mi
+  nodeSelector: {}
+  #  disktype: ssd
+  affinity: {}
+  # nodeAffinity:
+  #   requiredDuringSchedulingIgnoredDuringExecution:
+  #     nodeSelectorTerms:
+  #     - matchExpressions:
+  #       - key: kubernetes.io/e2e-az-name
+  #         operator: In
+  #         values:
+  #         - e2e-az1
+  #         - e2e-az2
+  tolerations: []
+  # - key: "example-key"
+  #   operator: "Exists"
+  #   effect: "NoSchedule"
+  topologySpreadConstraints: []
+  # - maxSkew: 1
+  #   topologyKey: "kubernetes.io/hostname"
+  #   whenUnsatisfiable: ScheduleAnyway
+  #   labelSelector:
+  #     matchLabels:
+  #       app: cronhpa-kubernetes-cronhpa-controller
+  #       controller-tools.k8s.io: "1.0"
 
 global:
   rbac:
