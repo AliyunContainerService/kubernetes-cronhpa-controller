@@ -258,7 +258,7 @@ func (cm *CronManager) GC() {
 					}
 					return true
 				}
-				
+
 				log.Warningf("Failed to find job %s of cronHPA %s in %s in cron engine and resubmit the job.", job.Name(), hpa.Name, hpa.Namespace)
 				cm.cronExecutor.AddJob(job)
 			}

@@ -79,6 +79,7 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 		if errors.IsNotFound(err) {
 			// Object not found, return.  Created objects are automatically garbage collected.
 			// For additional cleanup logic use finalizers.
+			log.Infof("GC start for: cronHPA %s in %s namespace is not found", request.Name, request.Namespace)
 			go r.CronManager.GC()
 			return reconcile.Result{}, nil
 		}
@@ -118,10 +119,12 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 						}
 						continue
 					}
+					// if nothing changed
 					skip = true
 				}
 			}
 
+			// need remove this condition because this is not job spec
 			if !skip {
 				if cJob.JobId != "" {
 					err := r.CronManager.delete(cJob.JobId)
@@ -131,7 +134,7 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 				}
 			}
 
-			// need remove this condition because this is not job spec
+			// if job nothing changed then append to left conditions
 			if skip {
 				leftConditions = append(leftConditions, cJob)
 			}
@@ -190,11 +193,11 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 		noNeedUpdateStatus = false
 		instance.Status.Conditions = updateConditions(instance.Status.Conditions, jobCondition)
 	}
-	// conditions doesn't changed and no need to update.
+	// conditions are not changed and no need to update.
 	if !noNeedUpdateStatus || len(leftConditions) != len(conditions) {
 		err := r.Update(context.Background(), instance)
 		if err != nil {
-			log.Errorf("Failed to update cron hpa %s status,because of %v", instance.Name, err)
+			log.Errorf("Failed to update cron hpa %s in namespace %s status, because of %v", instance.Name, instance.Namespace, err)
 		}
 	}
 

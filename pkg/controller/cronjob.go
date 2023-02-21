@@ -239,7 +239,7 @@ func (ch *CronJobHPA) ScalePlainRef() (msg string, err error) {
 		scale, err = ch.scaler.Scales(ch.TargetRef.RefNamespace).Get(context.Background(), targetGR, ch.TargetRef.RefName, v1.GetOptions{})
 		if err == nil {
 			found = true
-			log.Infof("%s %s in namespace %s has been scaled successfully. job: %s replicas: %d", ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.TargetRef.RefNamespace, ch.Name(), ch.DesiredSize)
+			log.Infof("%s %s in namespace %s has been scaled successfully. job: %s replicas: %d id: %s", ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.TargetRef.RefNamespace, ch.Name(), ch.DesiredSize, ch.ID())
 			break
 		}
 	}
