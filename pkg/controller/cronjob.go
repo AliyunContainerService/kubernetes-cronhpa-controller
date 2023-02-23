@@ -147,7 +147,7 @@ func (ch *CronJobHPA) ScaleHPA() (msg string, err error) {
 
 	targetGV, err := schema.ParseGroupVersion(targetRef.APIVersion)
 	if err != nil {
-		return "", fmt.Errorf("Failed to get TargetGroup of HPA %s,because of %v", hpa.Name, err)
+		return "", fmt.Errorf("Failed to get TargetGroup of HPA %s in namespace %s ,because of %v", hpa.Name, hpa.Namespace, err)
 	}
 
 	targetGK := schema.GroupKind{
@@ -207,7 +207,8 @@ func (ch *CronJobHPA) ScaleHPA() (msg string, err error) {
 
 	if hpa.Status.CurrentReplicas >= ch.DesiredSize {
 		// skip change replicas and exit
-		return fmt.Sprintf("Skip scale replicas because HPA %s current replicas:%d >= desired replicas:%d.", hpa.Name, scale.Spec.Replicas, ch.DesiredSize), nil
+		return fmt.Sprintf("Skip scale replicas because HPA %s in namespace %s current replicas:%d >= desired replicas:%d.",
+			hpa.Name, hpa.Namespace, scale.Spec.Replicas, ch.DesiredSize), nil
 	}
 
 	msg = fmt.Sprintf("current replicas:%d, desired replicas:%d.", scale.Spec.Replicas, ch.DesiredSize)

@@ -38,7 +38,7 @@ type CronManager struct {
 	sync.Mutex
 	cfg      *rest.Config
 	client   client.Client
-	jobQueue sync.Map
+	jobQueue *sync.Map
 	//cronProcessor CronProcessor
 	cronExecutor  CronExecutor
 	mapper        meta.RESTMapper
@@ -99,7 +99,7 @@ func (cm *CronManager) JobResultHandler(js *cron.JobResult) {
 	}, instance)
 
 	if e != nil {
-		log.Errorf("Failed to fetch cronHPA job %s of cronHPA %s in %s namespace,because of %v", job.Name(), cronHpa.Name, cronHpa.Namespace, e)
+		log.Errorf("Failed to fetch cronHPA job %s of cronHPA %s in namespace %s, because of %v", job.Name(), cronHpa.Name, cronHpa.Namespace, e)
 		return
 	}
 
@@ -230,11 +230,11 @@ func (cm *CronManager) GC() {
 		}, instance); err != nil {
 			exitsts = false
 			if errors.IsNotFound(err) {
-				log.Infof("remove job %s(%s) of cronHPA %s in %s namespace", job.Name(), job.SchedulePlan(), hpa.Name, hpa.Namespace)
+				log.Infof("remove job %s(%s) of cronHPA %s in namespace %s", job.Name(), job.SchedulePlan(), hpa.Name, hpa.Namespace)
 				if found {
 					err := cm.cronExecutor.RemoveJob(job)
 					if err != nil {
-						log.Errorf("Failed to gc job %s(%s) of cronHPA %s in %s namespace", job.Name(), job.SchedulePlan(), hpa.Name, hpa.Namespace)
+						log.Errorf("Failed to gc job %s(%s) of cronHPA %s in namespace %s", job.Name(), job.SchedulePlan(), hpa.Name, hpa.Namespace)
 						return true
 					}
 				}
@@ -252,11 +252,11 @@ func (cm *CronManager) GC() {
 			if exitsts {
 				if reason == JobTimeOut {
 					cm.eventRecorder.Event(instance, v1.EventTypeWarning, "OutOfDate", fmt.Sprintf("rerun out of date job: %s", job.Name()))
-					log.Warningf("Failed to find job %s (job id: %s, plan %s) of cronHPA %s in %s in cron engine and rerun the job.", job.Name(), job.ID(), job.SchedulePlan(), hpa.Name, hpa.Namespace)
+					log.Warningf("Failed to find job %s (job id: %s, plan %s) in cronHPA %s in %s in cron engine and rerun the job.", job.Name(), job.ID(), job.SchedulePlan(), hpa.Name, hpa.Namespace)
 					if msg, reRunErr := job.Run(); reRunErr != nil {
-						log.Errorf("failed to rerun out of date job %s, msg:%s, err %v", job.Name(), msg, reRunErr)
+						log.Errorf("failed to rerun out of date job %s (job id: %s, plan %s) in cronHPA %s in %s, msg:%s, err %v",
+							job.Name(), job.ID(), job.SchedulePlan(), hpa.Name, hpa.Namespace, msg, reRunErr)
 					}
-					return true
 				}
 
 				log.Warningf("Failed to find job %s of cronHPA %s in %s in cron engine and resubmit the job.", job.Name(), hpa.Name, hpa.Namespace)
@@ -305,7 +305,7 @@ func NewCronManager(cfg *rest.Config, client client.Client, recorder record.Even
 	cm := &CronManager{
 		cfg:           cfg,
 		client:        client,
-		jobQueue:      sync.Map{},
+		jobQueue:      &sync.Map{},
 		eventRecorder: recorder,
 	}
 
@@ -331,7 +331,7 @@ func NewCronManager(cfg *rest.Config, client client.Client, recorder record.Even
 	return cm
 }
 
-func queueLength(que sync.Map) int64 {
+func queueLength(que *sync.Map) int64 {
 	len := int64(0)
 	que.Range(func(k, v interface{}) bool {
 		len++
