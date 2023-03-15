@@ -7,6 +7,7 @@ require (
 	github.com/go-logr/zapr v0.2.0 // indirect; indrect
 	github.com/googleapis/gnostic v0.5.1 // indirect
 	github.com/gorilla/mux v1.8.0
+	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/prometheus/client_golang v1.7.1
 	github.com/ringtail/go-cron v1.0.1-0.20201027122514-cfb21c105f50
 	github.com/satori/go.uuid v1.2.0
