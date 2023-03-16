@@ -70,11 +70,11 @@ type ReconcileCronHorizontalPodAutoscaler struct {
 // Automatically generate RBAC rules to allow the Controller to read and write Deployments
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=autoscaling.alibabacloud.com,resources=cronhorizontalpodautoscalers,verbs=get;list;watch;create;update;patch;delete
-func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(context context.Context, request reconcile.Request) (reconcile.Result, error) {
 	// Fetch the CronHorizontalPodAutoscaler instance
 	log.Infof("Start to handle cronHPA %s in %s namespace", request.Name, request.Namespace)
 	instance := &autoscalingv1beta1.CronHorizontalPodAutoscaler{}
-	err := r.Get(context.TODO(), request.NamespacedName, instance)
+	err := r.Get(context, request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Object not found, return.  Created objects are automatically garbage collected.
@@ -197,7 +197,7 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(request reconcile.Reque
 	}
 	// conditions are not changed and no need to update.
 	if !noNeedUpdateStatus || len(leftConditions) != len(conditions) {
-		err := r.Update(context.Background(), instance)
+		err := r.Update(context, instance)
 		if err != nil {
 			log.Errorf("Failed to update cron hpa %s in namespace %s status, because of %v", instance.Name, instance.Namespace, err)
 		}
