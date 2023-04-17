@@ -235,9 +235,13 @@ func (cm *CronManager) GC() {
 					log.Errorf("Failed to run time out job %s  due to failed to get cronHPA %s in %s namespace,err: %v", job.Name(), hpa.Name, hpa.Namespace, err)
 					continue
 				}
+				KubeOutOfDateJobsInCronEngineTotal.Add(1)
 				cm.eventRecorder.Event(instance, v1.EventTypeWarning, "OutOfDate", fmt.Sprintf("rerun out of date job: %s", job.Name()))
 				if msg, reRunErr := job.Run(); reRunErr != nil {
+					// Rerunning the expired job fails, which means that the scale up or scale down fails. Need for attention
+					KubeFailedRerunOutOfDateJobsInCronEngineTotal.Add(1)
 					log.Errorf("failed to rerun out of date job %s, msg:%s, err %v", job.Name(), msg, reRunErr)
+					continue
 				}
 			}
 
