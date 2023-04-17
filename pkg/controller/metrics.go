@@ -45,6 +45,18 @@ var (
 		Help:        "Failed jobs in queue of Cron Engine",
 		ConstLabels: map[string]string{},
 	})
+
+	KubeOutOfDateJobsInCronEngineTotal = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name:        "kube_out_of_date_jobs_in_cron_engine_total",
+		Help:        "OutOfDate jobs in queue of Cron Engine",
+		ConstLabels: map[string]string{},
+	})
+
+	KubeFailedRerunOutOfDateJobsInCronEngineTotal = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name:        "kube_failed_rerun_out_of_date_jobs_in_cron_engine_total",
+		Help:        "Failed rerun OutOfDate jobs in queue of Cron Engine",
+		ConstLabels: map[string]string{},
+	})
 )
 
 func init() {
@@ -56,4 +68,6 @@ func init() {
 	metrics.Registry.MustRegister(KubeSuccessfulJobsInCronEngineTotal)
 	metrics.Registry.MustRegister(KubeFailedJobsInCronEngineTotal)
 	metrics.Registry.MustRegister(KubeExpiredJobsInCronEngineTotal)
+	metrics.Registry.MustRegister(KubeOutOfDateJobsInCronEngineTotal)
+	metrics.Registry.MustRegister(KubeFailedRerunOutOfDateJobsInCronEngineTotal)
 }
