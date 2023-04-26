@@ -147,7 +147,7 @@ func (ch *CronJobHPA) ScaleHPA() (msg string, err error) {
 
 	targetGV, err := schema.ParseGroupVersion(targetRef.APIVersion)
 	if err != nil {
-		return "", fmt.Errorf("Failed to get TargetGroup of HPA %s,because of %v", hpa.Name, err)
+		return "", fmt.Errorf("Failed to get TargetGroup of HPA %s in namespace %s ,because of %v", hpa.Name, hpa.Namespace, err)
 	}
 
 	targetGK := schema.GroupKind{
@@ -207,7 +207,8 @@ func (ch *CronJobHPA) ScaleHPA() (msg string, err error) {
 
 	if hpa.Status.CurrentReplicas >= ch.DesiredSize {
 		// skip change replicas and exit
-		return fmt.Sprintf("Skip scale replicas because HPA %s current replicas:%d >= desired replicas:%d.", hpa.Name, scale.Spec.Replicas, ch.DesiredSize), nil
+		return fmt.Sprintf("Skip scale replicas because HPA %s in namespace %s current replicas:%d >= desired replicas:%d.",
+			hpa.Name, hpa.Namespace, scale.Spec.Replicas, ch.DesiredSize), nil
 	}
 
 	msg = fmt.Sprintf("current replicas:%d, desired replicas:%d.", scale.Spec.Replicas, ch.DesiredSize)
@@ -239,7 +240,7 @@ func (ch *CronJobHPA) ScalePlainRef() (msg string, err error) {
 		scale, err = ch.scaler.Scales(ch.TargetRef.RefNamespace).Get(context.Background(), targetGR, ch.TargetRef.RefName, v1.GetOptions{})
 		if err == nil {
 			found = true
-			log.Infof("%s %s in namespace %s has been scaled successfully. job: %s replicas: %d", ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.TargetRef.RefNamespace, ch.Name(), ch.DesiredSize)
+			log.Infof("%s %s in namespace %s has been scaled successfully. job: %s replicas: %d id: %s", ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.TargetRef.RefNamespace, ch.Name(), ch.DesiredSize, ch.ID())
 			break
 		}
 	}
