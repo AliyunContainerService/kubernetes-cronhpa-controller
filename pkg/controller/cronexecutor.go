@@ -49,11 +49,11 @@ func (ce *CronHPAExecutor) FindJob(job CronJob) (bool, FailedFindJobReason) {
 	entries := ce.Engine.Entries()
 	for _, e := range entries {
 		if e.Job.ID() == job.ID() {
-			// clean up out of date jobs when it reach maxOutOfDateTimeout
+			// clean up out of date jobs when it reached maxOutOfDateTimeout
 			if e.Next.Add(maxOutOfDateTimeout).After(time.Now()) {
 				return true, ""
 			}
-			log.Warningf("The job %s is out of date and need to be clean up.", job.Name())
+			log.Warningf("The job %s(job id %s) in cronhpa %s namespace %s is out of date.", job.Name(), job.ID(), job.CronHPAMeta().Name, job.CronHPAMeta().Namespace)
 			return false, JobTimeOut
 		}
 	}
