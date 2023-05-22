@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/sets"
 	log "k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -232,20 +233,10 @@ func checkGlobalParamsChanges(status v1beta1.CronHorizontalPodAutoscalerStatus, 
 		return true
 	}
 
-	excludeDatesMap := make(map[string]bool)
-	for _, date := range spec.ExcludeDates {
-		excludeDatesMap[date] = true
-	}
+	curExcludeDates := sets.NewString(spec.ExcludeDates...)
+	preExcludeDates := sets.NewString(status.ExcludeDates...)
 
-	for _, date := range status.ExcludeDates {
-		if excludeDatesMap[date] {
-			delete(excludeDatesMap, date)
-		} else {
-			return true
-		}
-	}
-	// excludeMap change
-	return len(excludeDatesMap) != 0
+	return !curExcludeDates.Equal(preExcludeDates)
 }
 
 func runOnce(job v1beta1.Job) bool {
