@@ -108,35 +108,20 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(context context.Context
 		for _, cJob := range conditions {
 			skip := false
 			for _, job := range instance.Spec.Jobs {
-				if cJob.Name == job.Name {
-					// schedule has changed or RunOnce changed
-					if cJob.Schedule != job.Schedule || cJob.RunOnce != job.RunOnce || cJob.TargetSize != job.TargetSize {
-						// jobId exists and remove the job from cronManager
-						if cJob.JobId != "" {
-							err := r.CronManager.delete(cJob.JobId)
-							if err != nil {
-								log.Errorf("Failed to delete expired job %s in cronHPA %s namespace %s,because of %v", cJob.Name, instance.Name, instance.Namespace, err)
-							}
-						}
-						continue
-					}
-					// if nothing changed
+				if cJob.Name == job.Name && cJob.Schedule == job.Schedule && cJob.RunOnce == job.RunOnce && cJob.TargetSize == job.TargetSize {
 					skip = true
+					break
 				}
 			}
-
 			// need remove this condition because this is not job spec
 			if !skip {
 				if cJob.JobId != "" {
 					err := r.CronManager.delete(cJob.JobId)
 					if err != nil {
-						log.Errorf("Failed to delete expired job %s in cronHPA %s namespace %s, because of %v", cJob.Name, instance.Name, instance.Namespace, err)
+						log.Errorf("Failed to delete expired job %s,because of %v", cJob.Name, err)
 					}
 				}
-			}
-
-			// if job nothing changed then append to left conditions
-			if skip {
+			} else {
 				leftConditions = append(leftConditions, cJob)
 			}
 		}
