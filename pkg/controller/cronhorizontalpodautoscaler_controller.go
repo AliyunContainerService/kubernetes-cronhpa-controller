@@ -118,7 +118,7 @@ func (r *ReconcileCronHorizontalPodAutoscaler) Reconcile(context context.Context
 				if cJob.JobId != "" {
 					err := r.CronManager.delete(cJob.JobId)
 					if err != nil {
-						log.Errorf("Failed to delete expired job %s,because of %v", cJob.Name, err)
+						log.Errorf("Failed to delete expired job %s in cronHPA %s namespace %s, because of %v", cJob.Name, instance.Name, instance.Namespace, err)
 					}
 				}
 			} else {
