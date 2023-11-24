@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/gorilla/mux v1.8.0
 	github.com/prometheus/client_golang v1.14.0
-	github.com/ringtail/go-cron v1.0.1-0.20201027122514-cfb21c105f50
+	github.com/ringtail/go-cron v1.0.1-0.20231120023234-8095dce469e9
 	github.com/satori/go.uuid v1.2.0
 	k8s.io/api v0.24.0
 	k8s.io/apiextensions-apiserver v0.24.0
