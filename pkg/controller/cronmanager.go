@@ -224,26 +224,25 @@ func (cm *CronManager) GC() {
 		instance := &autoscalingv1beta1.CronHorizontalPodAutoscaler{}
 
 		// check exists first
-		if err := cm.client.Get(context.Background(), types.NamespacedName{
+		err := cm.client.Get(context.Background(), types.NamespacedName{
 			Namespace: hpa.Namespace,
 			Name:      hpa.Name,
-		}, instance); err != nil {
+		}, instance)
+		if (err != nil && errors.IsNotFound(err)) || (hpa.ObjectMeta.GetUID() != instance.ObjectMeta.GetUID()) {
 			exitsts = false
-			if errors.IsNotFound(err) {
-				log.Infof("remove job %s(%s) of cronHPA %s in namespace %s", job.Name(), job.SchedulePlan(), hpa.Name, hpa.Namespace)
-				if found {
-					err := cm.cronExecutor.RemoveJob(job)
-					if err != nil {
-						log.Errorf("Failed to gc job %s(%s) of cronHPA %s in namespace %s", job.Name(), job.SchedulePlan(), hpa.Name, hpa.Namespace)
-						return true
-					}
+			log.Infof("remove job %s(%s) of cronHPA %s in namespace %s", job.Name(), job.SchedulePlan(), hpa.Name, hpa.Namespace)
+			if found {
+				err := cm.cronExecutor.RemoveJob(job)
+				if err != nil {
+					log.Errorf("Failed to gc job %s(%s) of cronHPA %s in namespace %s", job.Name(), job.SchedulePlan(), hpa.Name, hpa.Namespace)
+					return true
 				}
-				cm.delete(job.ID())
-				// metrics update
-				// when a job is in cron engine but not in crd.
-				// that means the job has been expired and need to be clean up.
-				KubeExpiredJobsInCronEngineTotal.Add(1)
 			}
+			cm.delete(job.ID())
+			// metrics update
+			// when a job is in cron engine but not in crd.
+			// that means the job has been expired and need to be clean up.
+			KubeExpiredJobsInCronEngineTotal.Add(1)
 
 			// metrics update
 			// ignore other errors
