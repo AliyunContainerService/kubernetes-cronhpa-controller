@@ -268,7 +268,8 @@ func checkRefValid(ref *TargetRef) error {
 }
 
 func checkPlanValid(plan string) error {
-	return nil
+    _, err := cron.Parse(plan)
+	return err
 }
 
 func CronHPAJobFactory(instance *v1beta1.CronHorizontalPodAutoscaler, job v1beta1.Job, scaler scaleclient.ScalesGetter, mapper apimeta.RESTMapper, client client.Client) (CronJob, error) {
