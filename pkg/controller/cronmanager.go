@@ -47,7 +47,7 @@ type CronManager struct {
 }
 
 func (cm *CronManager) createOrUpdate(j CronJob) error {
-	if _, ok := cm.jobQueue.Load(j.ID()); !ok {
+	if loadJob, ok := cm.jobQueue.Load(j.ID()); !ok {
 		err := cm.cronExecutor.AddJob(j)
 		if err != nil {
 			return fmt.Errorf("Failed to add job to cronExecutor,because of %v", err)
@@ -56,7 +56,6 @@ func (cm *CronManager) createOrUpdate(j CronJob) error {
 		log.Infof("cronHPA job %s of cronHPA %s in %s created, %d active jobs exist", j.Name(), j.CronHPAMeta().Name, j.CronHPAMeta().Namespace,
 			queueLength(cm.jobQueue))
 	} else {
-		loadJob, _ := cm.jobQueue.Load(j.ID())
 		job, convert := loadJob.(*CronJobHPA)
 		if !convert {
 			return fmt.Errorf("failed to convert job %v to CronJobHPA", loadJob)
