@@ -35,7 +35,7 @@ func (n NoNeedUpdate) Error() string {
 }
 
 type CronManager struct {
-	sync.Mutex
+	//sync.Mutex
 	cfg      *rest.Config
 	client   client.Client
 	jobQueue *sync.Map
