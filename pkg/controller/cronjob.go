@@ -245,7 +245,7 @@ func (ch *CronJobHPA) ScalePlainRef() (msg string, err error) {
 		}
 	}
 
-	if found == false {
+	if !found {
 		log.Errorf("failed to find source target %s %s in %s namespace", ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.TargetRef.RefNamespace)
 		return "", fmt.Errorf("failed to find source target %s %s in %s namespace", ch.TargetRef.RefKind, ch.TargetRef.RefName, ch.TargetRef.RefNamespace)
 	}
