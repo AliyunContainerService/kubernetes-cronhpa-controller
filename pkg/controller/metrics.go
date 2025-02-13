@@ -45,6 +45,14 @@ var (
 		Help:        "Failed jobs in queue of Cron Engine",
 		ConstLabels: map[string]string{},
 	})
+
+	kubeCronjobSkippedJobsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "kube_cronjob_skipped_jobs_total",
+			Help: "Skipped jobs per deployment",
+		},
+		[]string{"cronhpa", "job"},
+	)
 )
 
 func init() {
@@ -56,4 +64,10 @@ func init() {
 	metrics.Registry.MustRegister(KubeSuccessfulJobsInCronEngineTotal)
 	metrics.Registry.MustRegister(KubeFailedJobsInCronEngineTotal)
 	metrics.Registry.MustRegister(KubeExpiredJobsInCronEngineTotal)
+
+	metrics.Registry.MustRegister(kubeCronjobSkippedJobsTotal)
+}
+
+func IncSkipJob(cronhpa, job string) {
+	kubeCronjobSkippedJobsTotal.WithLabelValues(cronhpa, job).Inc()
 }

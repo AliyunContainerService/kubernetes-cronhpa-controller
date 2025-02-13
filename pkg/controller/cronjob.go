@@ -206,6 +206,7 @@ func (ch *CronJobHPA) ScaleHPA() (msg string, err error) {
 	}
 
 	if hpa.Status.CurrentReplicas >= ch.DesiredSize {
+		IncSkipJob(ch.HPARef.Name, ch.name)
 		// skip change replicas and exit
 		return fmt.Sprintf("Skip scale replicas because HPA %s in namespace %s current replicas:%d >= desired replicas:%d.",
 			hpa.Name, hpa.Namespace, scale.Spec.Replicas, ch.DesiredSize), nil
